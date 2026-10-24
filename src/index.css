@@ -1,0 +1,195 @@
+@import "tailwindcss";
+
+:root {
+  font-family: 'Sora', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --radius: 0.75rem;
+  --background: oklch(14% 0.02 264);
+  --foreground: oklch(94% 0.012 250);
+  --card: oklch(17.5% 0.025 264);
+  --card-foreground: oklch(94% 0.012 250);
+  --popover: oklch(17.5% 0.025 264);
+  --popover-foreground: oklch(94% 0.012 250);
+  --primary: oklch(62% 0.19 259);
+  --primary-foreground: oklch(98% 0.005 250);
+  --primary-glow: oklch(74% 0.15 245);
+  --secondary: oklch(25% 0.045 259);
+  --secondary-foreground: oklch(80% 0.06 259);
+  --muted: oklch(22% 0.03 264);
+  --muted-foreground: oklch(68% 0.03 260);
+  --accent: oklch(25% 0.045 259);
+  --accent-foreground: oklch(94% 0.012 250);
+  --destructive: oklch(64% 0.21 25);
+  --destructive-foreground: oklch(98% 0 0);
+  --border: oklch(27% 0.03 264);
+  --input: oklch(27% 0.03 264);
+  --ring: oklch(62% 0.19 259);
+  --sidebar: oklch(11.5% 0.02 264);
+  --sidebar-foreground: oklch(94% 0.012 250);
+  --sidebar-primary: oklch(62% 0.19 259);
+  --sidebar-primary-foreground: oklch(98% 0.005 250);
+  --sidebar-accent: oklch(25% 0.045 259);
+  --sidebar-accent-foreground: oklch(94% 0.012 250);
+  --sidebar-border: oklch(24% 0.028 264);
+  --sidebar-ring: oklch(62% 0.19 259);
+  --fun-sun: oklch(82% 0.16 90);
+  --fun-pink: oklch(70% 0.19 350);
+  --fun-sky: oklch(74% 0.13 225);
+  --fun-orange: oklch(74% 0.16 55);
+  --fun-violet: oklch(68% 0.17 295);
+  --fun-lime: oklch(80% 0.18 145);
+  --gradient-primary: linear-gradient(135deg, var(--primary), var(--primary-glow));
+  --gradient-hero: radial-gradient(ellipse at 80% -10%, oklch(62% 0.19 259 / 0.35), transparent 55%), linear-gradient(160deg, oklch(22% 0.045 259), oklch(15.5% 0.028 264));
+  --shadow-glow: 0 12px 34px -10px oklch(62% 0.19 259 / 0.45);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Sora', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom UI Utility Classes matching StudyBot AI */
+.hero-card {
+  background-image: var(--gradient-hero);
+  box-shadow: var(--shadow-glow);
+  border: 1px solid oklch(62% 0.19 259 / 0.25);
+  border-radius: 1.5rem;
+  padding: 2.25rem;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.panel-hover:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-2px);
+}
+
+.tile {
+  background: color-mix(in oklab, var(--tile, var(--primary)) 10%, var(--card));
+  border: 1px solid color-mix(in oklab, var(--tile, var(--primary)) 35%, var(--border));
+  border-radius: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.1rem;
+  position: relative;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  cursor: pointer;
+}
+
+.tile:hover {
+  border-color: var(--tile, var(--primary));
+  box-shadow: 0 12px 30px -12px color-mix(in oklab, var(--tile, var(--primary)) 55%, transparent);
+  transform: translateY(-3px);
+}
+
+.tile-icon {
+  background: color-mix(in oklab, var(--tile, var(--primary)) 22%, var(--card));
+  border: 1px solid color-mix(in oklab, var(--tile, var(--primary)) 40%, transparent);
+  color: var(--tile, var(--primary));
+  border-radius: 1rem;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  display: grid;
+}
+
+.btn-mint {
+  background-image: var(--gradient-primary);
+  color: var(--primary-foreground);
+  box-shadow: var(--shadow-glow);
+  border-radius: 9999px;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.4rem;
+  font-weight: 700;
+  font-size: 0.925rem;
+  transition: transform 0.2s ease, filter 0.2s ease;
+  display: inline-flex;
+}
+
+.btn-mint:hover {
+  transform: scale(1.03);
+  filter: brightness(1.08);
+}
+
+.glass-badge {
+  letter-spacing: 0.04em;
+  color: var(--secondary-foreground);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: oklch(62% 0.19 259 / 0.14);
+  border: 1px solid oklch(62% 0.19 259 / 0.35);
+  border-radius: 9999px;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: inline-flex;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  border-radius: 9999px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: border-color 0.2s, color 0.2s, background-color 0.2s;
+}
+
+.chip:hover {
+  border-color: var(--primary);
+  color: var(--primary-glow);
+  background: color-mix(in oklab, var(--primary) 12%, var(--card));
+}
+
+.grad-text {
+  background-image: var(--gradient-primary);
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* 3D card flip animation */
+.perspective-1000 {
+  perspective: 1000px;
+}
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
