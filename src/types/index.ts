@@ -154,5 +154,29 @@ export interface PromptHistoryItem {
   starred?: boolean;
 }
 
+export type BadgeCategory = 'mock_tests' | 'study_streak' | 'mastery' | 'milestones';
 
+export interface AchievementBadge {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  iconName: string;
+  category: BadgeCategory;
+  criteria: string;
+  currentValue: number;
+  targetValue: number;
+  unit: string;
+  unlocked: boolean;
+  unlockedAt?: string;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  xpReward: number;
+  qualifyingDetails?: string[];
+}
 
+export interface DailyStudyLog {
+  date: string; // YYYY-MM-DD
+  dayLabel: string; // 'Mon', 'Tue', etc.
+  minutes: number;
+  targetMet: boolean; // minutes >= 60
+}

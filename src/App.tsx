@@ -19,6 +19,10 @@ import { FocusWidget } from './components/FocusWidget';
 import { NotesView } from './components/NotesView';
 import { MistakeBookView } from './components/MistakeBookView';
 import { NCERTBooksView } from './components/NCERTBooksView';
+import { StudyPlannerView } from './components/StudyPlannerView';
+import { ProblemScannerView } from './components/ProblemScannerView';
+import { ProgressRoadmapView } from './components/ProgressRoadmapView';
+import { AchievementsView } from './components/AchievementsView';
 
 const MainContent: React.FC = () => {
   const { activeTab, isSignedIn } = useStudy();
@@ -106,20 +110,13 @@ const MainContent: React.FC = () => {
           />
         );
       case '/planner':
-        return (
-          <StudyChat
-            mode="planner"
-            title="Study Planner"
-            subtitle="Tell me your exam date, subjects and daily hours — get a timetable."
-            placeholder="e.g. Board exams in 30 days, Maths, Science, English, 4 hrs/day"
-            suggestions={[
-              'Board exams in 30 days, 5 subjects, 4 hrs/day',
-              'Unit test in 7 days: Physics & Chemistry',
-              'JEE prep, 6 months, 6 hrs/day',
-              'NEET biology revision in 15 days, 5 hrs/day',
-            ]}
-          />
-        );
+        return <StudyPlannerView />;
+      case '/scanner':
+        return <ProblemScannerView />;
+      case '/progress':
+        return <ProgressRoadmapView />;
+      case '/achievements':
+        return <AchievementsView />;
       case '/':
       default:
         return <Dashboard />;

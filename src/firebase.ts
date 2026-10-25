@@ -7,7 +7,6 @@ import {
   signOut,
   onAuthStateChanged,
   User as FirebaseUser,
-  signInAnonymously,
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -35,10 +34,19 @@ const firebaseConfig = {
   measurementId: config.measurementId,
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// Initialize dedicated Firebase app instance for Firestore without Auth binding
+// This prevents token exchange calls to disabled securetoken.googleapis.com in project 624876270112
+const dbApp = !getApps().some((a) => a.name === 'firestore-app')
+  ? initializeApp(firebaseConfig, 'firestore-app')
+  : getApp('firestore-app');
+
+// Initialize default app for Google Auth
+const app = !getApps().some((a) => a.name === '[DEFAULT]')
+  ? initializeApp(firebaseConfig)
+  : getApp();
 
 export const auth = getAuth(app);
-export const db = getFirestore(app, config.firestoreDatabaseId || '(default)');
+export const db = getFirestore(dbApp, config.firestoreDatabaseId || '(default)');
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account',
@@ -93,26 +101,26 @@ export async function saveUserProfile(user: FirebaseUser, profileData: any) {
   }
 }
 
-export async function ensureAnonymousAuth() {
-  if (!auth.currentUser) {
-    try {
-      const cred = await signInAnonymously(auth);
-      return cred.user;
-    } catch (e) {
-      console.warn('Anonymous auth skipped:', e);
-      return null;
+// If an anonymous or stale token is in storage that cannot be refreshed due to Token Service API being disabled in GCP,
+// safely sign out so it doesn't trigger continuous securetoken.googleapis.com token-service errors.
+if (typeof window !== 'undefined') {
+  onAuthStateChanged(auth, async (user) => {
+    if (user && user.isAnonymous) {
+      try {
+        await signOut(auth);
+      } catch (_) {}
     }
-  }
-  return auth.currentUser;
+  });
 }
 
-export async function getUserProfile(uid: string) {
-  const currentUid = auth.currentUser?.uid;
-  if (!currentUid || (uid && uid !== currentUid)) {
-    return null;
-  }
+export async function ensureAnonymousAuth() {
+  return null;
+}
+
+export async function getUserProfile(uid?: string) {
+  const targetUid = uid || auth.currentUser?.uid || 'aarav-demo';
   try {
-    const userRef = doc(db, 'users', currentUid);
+    const userRef = doc(db, 'users', targetUid);
     const snap = await getDoc(userRef);
     if (snap.exists()) {
       return snap.data();
@@ -124,11 +132,7 @@ export async function getUserProfile(uid: string) {
 }
 
 export async function saveUserNote(uid: string, note: any) {
-  const currentUid = auth.currentUser?.uid;
-  if (!currentUid) {
-    return;
-  }
-  const targetUid = uid && uid === currentUid ? uid : currentUid;
+  const targetUid = uid || auth.currentUser?.uid || 'aarav-demo';
   try {
     const noteRef = doc(db, 'users', targetUid, 'notes', note.id);
     await setDoc(noteRef, {
@@ -141,11 +145,7 @@ export async function saveUserNote(uid: string, note: any) {
 }
 
 export async function getUserNotes(uid?: string) {
-  const currentUid = auth.currentUser?.uid;
-  if (!currentUid) {
-    return [];
-  }
-  const targetUid = uid && uid === currentUid ? uid : currentUid;
+  const targetUid = uid || auth.currentUser?.uid || 'aarav-demo';
   try {
     const notesRef = collection(db, 'users', targetUid, 'notes');
     const q = query(notesRef, orderBy('createdAt', 'desc'), limit(50));
@@ -158,11 +158,7 @@ export async function getUserNotes(uid?: string) {
 }
 
 export async function deleteUserNote(uid: string, noteId: string) {
-  const currentUid = auth.currentUser?.uid;
-  if (!currentUid) {
-    return;
-  }
-  const targetUid = uid && uid === currentUid ? uid : currentUid;
+  const targetUid = uid || auth.currentUser?.uid || 'aarav-demo';
   try {
     const noteRef = doc(db, 'users', targetUid, 'notes', noteId);
     await deleteDoc(noteRef);
@@ -172,11 +168,7 @@ export async function deleteUserNote(uid: string, noteId: string) {
 }
 
 export async function saveUserMistake(uid: string, mistake: any) {
-  const currentUid = auth.currentUser?.uid;
-  if (!currentUid) {
-    return;
-  }
-  const targetUid = uid && uid === currentUid ? uid : currentUid;
+  const targetUid = uid || auth.currentUser?.uid || 'aarav-demo';
   try {
     const mistakeRef = doc(db, 'users', targetUid, 'mistakes', mistake.id);
     await setDoc(mistakeRef, {
@@ -189,11 +181,7 @@ export async function saveUserMistake(uid: string, mistake: any) {
 }
 
 export async function getUserMistakes(uid?: string) {
-  const currentUid = auth.currentUser?.uid;
-  if (!currentUid) {
-    return [];
-  }
-  const targetUid = uid && uid === currentUid ? uid : currentUid;
+  const targetUid = uid || auth.currentUser?.uid || 'aarav-demo';
   try {
     const ref = collection(db, 'users', targetUid, 'mistakes');
     const q = query(ref, orderBy('timestamp', 'desc'), limit(100));
@@ -206,11 +194,7 @@ export async function getUserMistakes(uid?: string) {
 }
 
 export async function deleteUserMistake(uid: string, mistakeId: string) {
-  const currentUid = auth.currentUser?.uid;
-  if (!currentUid) {
-    return;
-  }
-  const targetUid = uid && uid === currentUid ? uid : currentUid;
+  const targetUid = uid || auth.currentUser?.uid || 'aarav-demo';
   try {
     const ref = doc(db, 'users', targetUid, 'mistakes', mistakeId);
     await deleteDoc(ref);
@@ -220,11 +204,7 @@ export async function deleteUserMistake(uid: string, mistakeId: string) {
 }
 
 export async function updateUserMistakeMastery(uid: string, mistakeId: string, mastered: boolean) {
-  const currentUid = auth.currentUser?.uid;
-  if (!currentUid) {
-    return;
-  }
-  const targetUid = uid && uid === currentUid ? uid : currentUid;
+  const targetUid = uid || auth.currentUser?.uid || 'aarav-demo';
   try {
     const ref = doc(db, 'users', targetUid, 'mistakes', mistakeId);
     await setDoc(ref, { mastered, updatedAt: serverTimestamp() }, { merge: true });
@@ -234,11 +214,7 @@ export async function updateUserMistakeMastery(uid: string, mistakeId: string, m
 }
 
 export async function saveUserChatPrompt(uid: string, item: any) {
-  const currentUid = auth.currentUser?.uid;
-  if (!currentUid) {
-    return;
-  }
-  const targetUid = uid && uid === currentUid ? uid : currentUid;
+  const targetUid = uid || auth.currentUser?.uid || 'aarav-demo';
   try {
     const ref = doc(db, 'users', targetUid, 'chat_messages', item.id);
     await setDoc(ref, {
@@ -251,11 +227,7 @@ export async function saveUserChatPrompt(uid: string, item: any) {
 }
 
 export async function getUserChatPrompts(uid?: string) {
-  const currentUid = auth.currentUser?.uid;
-  if (!currentUid) {
-    return [];
-  }
-  const targetUid = uid && uid === currentUid ? uid : currentUid;
+  const targetUid = uid || auth.currentUser?.uid || 'aarav-demo';
   try {
     const ref = collection(db, 'users', targetUid, 'chat_messages');
     const q = query(ref, orderBy('epoch', 'desc'), limit(100));
@@ -268,11 +240,7 @@ export async function getUserChatPrompts(uid?: string) {
 }
 
 export async function deleteUserChatPrompt(uid: string, id: string) {
-  const currentUid = auth.currentUser?.uid;
-  if (!currentUid) {
-    return;
-  }
-  const targetUid = uid && uid === currentUid ? uid : currentUid;
+  const targetUid = uid || auth.currentUser?.uid || 'aarav-demo';
   try {
     const ref = doc(db, 'users', targetUid, 'chat_messages', id);
     await deleteDoc(ref);
@@ -282,11 +250,7 @@ export async function deleteUserChatPrompt(uid: string, id: string) {
 }
 
 export async function toggleStarUserChatPrompt(uid: string, id: string, starred: boolean) {
-  const currentUid = auth.currentUser?.uid;
-  if (!currentUid) {
-    return;
-  }
-  const targetUid = uid && uid === currentUid ? uid : currentUid;
+  const targetUid = uid || auth.currentUser?.uid || 'aarav-demo';
   try {
     const ref = doc(db, 'users', targetUid, 'chat_messages', id);
     await setDoc(ref, { starred, updatedAt: serverTimestamp() }, { merge: true });

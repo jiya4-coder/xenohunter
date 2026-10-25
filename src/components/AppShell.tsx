@@ -21,8 +21,13 @@ import {
   Maximize2,
   LogOut,
   ChevronRight,
+  ChevronDown,
+  Check,
   Sparkles,
   BookMarked,
+  Camera,
+  TrendingUp,
+  Trophy,
 } from 'lucide-react';
 
 interface AppShellProps {
@@ -34,6 +39,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     activeTab,
     setActiveTab,
     profile,
+    updateProfile,
     stats,
     mistakes,
     currentUser,
@@ -43,12 +49,38 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   } = useStudy();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [classDropdownOpen, setClassDropdownOpen] = useState(false);
+
+  const [recentScans, setRecentScans] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('studybot_recent_scans');
+      return saved ? JSON.parse(saved) : [
+        {
+          id: 'science-1',
+          title: 'Force & Pressure Copy',
+          subject: 'Science',
+          time: 'Yesterday',
+        },
+        {
+          id: 'math-1',
+          title: 'Polynomials Classwork',
+          subject: 'Maths',
+          time: '2 days ago',
+        },
+      ];
+    } catch {
+      return [];
+    }
+  });
 
   const unmasteredMistakesCount = mistakes.filter((m) => !m.mastered).length;
 
   const navItems = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/progress', label: 'My Progress', icon: TrendingUp },
+    { to: '/achievements', label: 'Achievements', icon: Trophy, badgeText: '🏆 Badges' },
     { to: '/tutor', label: 'AI Tutor', icon: MessageCircle },
+    { to: '/scanner', label: 'Problem Scanner', icon: Camera, badgeText: '✨ AI' },
     { to: '/notes', label: 'AI Notes', icon: Sparkles },
     { to: '/mock-test', label: 'Mock Tests', icon: ListChecks },
     {
@@ -120,8 +152,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       {/* 2. Middle Body: Sidebar + Main Workspace */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar (matching Image 2) */}
-        <aside className="hidden md:flex w-64 flex-col border-r border-white/10 bg-[#080c18] justify-between">
-          <div className="p-4 space-y-4">
+        <aside className="hidden md:flex w-64 flex-col border-r border-white/10 bg-[#080c18] h-full overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20 select-none">
+          <div className="p-4 space-y-4 flex-1">
             {/* Logo */}
             <div
               onClick={() => setActiveTab('/')}
@@ -141,16 +173,96 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             </div>
 
             {/* 3 Pills under logo (matching Image 2) */}
-            <div className="space-y-1.5 pt-1">
-              {/* Class Pill */}
-              <button
-                type="button"
-                onClick={() => setCustomizeOpen(true)}
-                className="flex w-full items-center justify-between rounded-full border border-white/10 bg-[#12182b] px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:border-blue-500/50 hover:bg-[#182038] transition-all"
-              >
-                <span>{profile.classLevel} · {profile.primaryExam}</span>
-                <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-              </button>
+            <div className="space-y-1.5 pt-1 relative">
+              {/* Interactive Class Switcher Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setClassDropdownOpen(!classDropdownOpen)}
+                  className="flex w-full items-center justify-between rounded-full border border-blue-500/30 bg-[#12182b] px-3.5 py-1.5 text-xs font-semibold text-slate-200 hover:border-blue-400 hover:bg-[#182038] transition-all shadow-sm group"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>{profile.classLevel} · {profile.primaryExam}</span>
+                  </div>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 group-hover:text-blue-400 ${
+                      classDropdownOpen ? 'rotate-180 text-blue-400' : ''
+                    }`}
+                  />
+                </button>
+
+                {/* Dropdown Menu */}
+                {classDropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setClassDropdownOpen(false)}
+                    />
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl border border-white/10 bg-[#0d1326] p-2 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+                      <div className="px-2 py-1 text-[0.65rem] font-bold uppercase tracking-wider text-slate-400 border-b border-white/5 pb-1.5 mb-1.5 flex items-center justify-between">
+                        <span>Select Class (NCF-SE)</span>
+                        <span className="text-[0.6rem] text-blue-400 font-normal">2026–27</span>
+                      </div>
+                      <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
+                        {[
+                          { cls: 'Class 4', stage: 'Preparatory Stage', books: 'Maths Mela · Wondrous World' },
+                          { cls: 'Class 5', stage: 'Preparatory Stage', books: 'Maths Mela · Santoor' },
+                          { cls: 'Class 6', stage: 'Middle Stage', books: 'Ganita Prakash · Curiosity' },
+                          { cls: 'Class 7', stage: 'Middle Stage', books: 'Ganita Prakash · Curiosity' },
+                          { cls: 'Class 8', stage: 'Middle Stage', books: 'Ganita Prakash · Curiosity' },
+                          { cls: 'Class 9', stage: 'Secondary Stage', books: 'Ganita Manjari · Exploration' },
+                        ].map((item) => {
+                          const isSelected = profile.classLevel.toLowerCase().includes(item.cls.toLowerCase());
+                          return (
+                            <button
+                              key={item.cls}
+                              type="button"
+                              onClick={() => {
+                                updateProfile({ classLevel: item.cls });
+                                setClassDropdownOpen(false);
+                              }}
+                              className={`flex w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-left transition-all ${
+                                isSelected
+                                  ? 'bg-[#1d3557] text-white border border-blue-500/50 shadow-sm'
+                                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                              }`}
+                            >
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-1.5 text-xs font-bold">
+                                  <span>{item.cls} · CBSE</span>
+                                  {isSelected && (
+                                    <span className="rounded bg-blue-500/20 px-1.5 py-0.2 text-[0.6rem] font-extrabold text-blue-300 border border-blue-400/30">
+                                      Active
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[0.62rem] text-slate-400">
+                                  {item.stage} · {item.books}
+                                </span>
+                              </div>
+                              {isSelected && <Check className="h-4 w-4 text-emerald-400 shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="mt-2 pt-1.5 border-t border-white/5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClassDropdownOpen(false);
+                            setCustomizeOpen(true);
+                          }}
+                          className="flex w-full items-center justify-center gap-1 rounded-lg py-1 text-[0.68rem] font-semibold text-slate-400 hover:text-blue-300 hover:bg-white/5 transition-all"
+                        >
+                          <span>⚙️ Customize full profile...</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
 
               {/* Streak Pill */}
               <div className="flex items-center gap-2 rounded-full border border-white/10 bg-[#12182b] px-3.5 py-1.5 text-xs font-semibold text-slate-300">
@@ -196,19 +308,63 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                       />
                       <span>{item.label}</span>
                     </div>
-                    {item.badge !== undefined && (
-                      <span className="rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[0.65rem] font-bold text-rose-300">
-                        {item.badge}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {(item as any).badgeText && (
+                        <span className="rounded-full bg-blue-500/20 border border-blue-500/40 px-1.5 py-0.5 text-[0.62rem] font-bold text-blue-300">
+                          {(item as any).badgeText}
+                        </span>
+                      )}
+                      {item.badge !== undefined && (
+                        <span className="rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[0.65rem] font-bold text-rose-300">
+                          {item.badge}
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })}
             </nav>
+
+            {/* Recent Scans Mini-List (Zone A) */}
+            {recentScans.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-white/10">
+                <div className="flex items-center justify-between text-[0.65rem] font-bold uppercase tracking-wider text-slate-400 mb-2 px-1">
+                  <span className="flex items-center gap-1.5 text-blue-400">
+                    <Camera className="h-3 w-3 text-cyan-400" />
+                    Recent Scans
+                  </span>
+                  <span className="text-[0.6rem] text-slate-500 font-normal">History</span>
+                </div>
+                <div className="space-y-1">
+                  {recentScans.slice(0, 3).map((scan, idx) => (
+                    <button
+                      key={scan.id || idx}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('/scanner');
+                        window.dispatchEvent(new CustomEvent('studybot:load-scan', { detail: scan }));
+                      }}
+                      className="flex w-full items-center justify-between rounded-xl p-2 text-left text-xs hover:bg-white/5 transition-all group"
+                      title={`Reopen ${scan.title}`}
+                    >
+                      <div className="truncate pr-1">
+                        <p className="text-[0.72rem] font-semibold text-slate-200 group-hover:text-blue-300 truncate">
+                          {scan.title}
+                        </p>
+                        <span className="text-[0.62rem] text-slate-500">
+                          {scan.subject} · {scan.time || 'Yesterday'}
+                        </span>
+                      </div>
+                      <ChevronRight className="h-3 w-3 text-slate-600 group-hover:text-blue-400 shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Tip Card (matching AI Tutor screenshot) */}
-          <div className="p-3 space-y-2 border-t border-white/10">
+          <div className="p-3 space-y-2 border-t border-white/10 mt-auto shrink-0">
             <div className="rounded-xl border border-white/5 bg-[#0e1426] p-3 text-[0.7rem] text-slate-400 leading-relaxed">
               <span className="font-bold text-amber-400">💡 Tip: </span>
               after every answer, try a learning aid like <strong className="text-white">Quiz me</strong> or <strong className="text-white">Draw a diagram</strong>.
@@ -266,7 +422,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
         {/* Mobile Dropdown Nav */}
         {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-x-0 top-24 z-50 border-b border-white/10 bg-[#080c18]/95 p-4 backdrop-blur-xl shadow-2xl">
+          <div className="md:hidden fixed inset-x-0 top-24 z-50 border-b border-white/10 bg-[#080c18]/95 p-4 backdrop-blur-xl shadow-2xl max-h-[calc(100vh-6.5rem)] overflow-y-auto scrollbar-thin">
             <div className="grid grid-cols-2 gap-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -296,6 +452,36 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                   </button>
                 );
               })}
+            </div>
+
+            {/* Quick Class Selector in Mobile Menu */}
+            <div className="mt-3 pt-3 border-t border-white/10">
+              <div className="text-[0.68rem] font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center justify-between">
+                <span>Select Class (NCF-SE 2026–27)</span>
+                <span className="text-emerald-400 font-bold">{profile.classLevel}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {['Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9'].map((cls) => {
+                  const isSelected = profile.classLevel.toLowerCase().includes(cls.toLowerCase());
+                  return (
+                    <button
+                      key={cls}
+                      type="button"
+                      onClick={() => {
+                        updateProfile({ classLevel: cls });
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`rounded-lg py-1.5 px-2 text-xs font-bold transition-all ${
+                        isSelected
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {cls}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

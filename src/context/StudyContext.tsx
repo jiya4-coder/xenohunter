@@ -461,6 +461,14 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch {}
       return updated;
     });
+
+    try {
+      const todayKey = new Date().toISOString().split('T')[0];
+      const savedLogs = JSON.parse(localStorage.getItem('studybot_daily_study_log') || '{}');
+      savedLogs[todayKey] = (savedLogs[todayKey] || 0) + minutes;
+      localStorage.setItem('studybot_daily_study_log', JSON.stringify(savedLogs));
+      window.dispatchEvent(new Event('studybot:study-log-updated'));
+    } catch {}
   };
 
   const addStars = (stars: number) => {

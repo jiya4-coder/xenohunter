@@ -22,6 +22,7 @@ import {
 import confetti from 'canvas-confetti';
 import { MockQuestion, MockTestResult } from '../types';
 import { safeFetchJson } from '../utils/api';
+import { recordMockTest } from '../utils/achievementEngine';
 
 export const MockTestView: React.FC = () => {
   const { profile, addQuestionAttempt, addStars, addStudyMinutes, setActiveTab, addMistake } = useStudy();
@@ -236,6 +237,15 @@ export const MockTestView: React.FC = () => {
     setTestSubmitted(true);
     addStudyMinutes(Math.max(Math.ceil((questionCount * 60 - secondsRemaining) / 60), 2));
     addStars(Math.round(finalScore * 5));
+
+    // Save to shared mock test records & trigger achievement engine
+    recordMockTest({
+      name: `Mock Test: ${topic}`,
+      subject,
+      score: Number(finalScore.toFixed(2)),
+      maxScore,
+      focusArea: accuracy === 100 ? 'Flawless 100% Score!' : accuracy >= 90 ? 'Excellent score (90%+)' : `Revise: ${topic}`,
+    });
 
     if (accuracy >= 70) {
       try {

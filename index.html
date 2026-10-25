@@ -14,6 +14,30 @@
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   </head>
   <body class="bg-[#100f1c] text-[#ecebfa] min-h-screen selection:bg-purple-600/30 selection:text-white antialiased">
+    <script>
+      (function() {
+        try {
+          if (typeof window !== 'undefined') {
+            for (var i = localStorage.length - 1; i >= 0; i--) {
+              var k = localStorage.key(i);
+              if (k && (k.indexOf('firebase:authUser') !== -1 || k.indexOf('firebase:installations') !== -1)) {
+                try {
+                  var v = JSON.parse(localStorage.getItem(k) || '{}');
+                  if (v && v.isAnonymous) {
+                    localStorage.removeItem(k);
+                  }
+                } catch(e) {
+                  localStorage.removeItem(k);
+                }
+              }
+            }
+            if (window.indexedDB) {
+              window.indexedDB.deleteDatabase('firebaseLocalStorageDb');
+            }
+          }
+        } catch (_) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
