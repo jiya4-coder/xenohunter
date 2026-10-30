@@ -47,6 +47,8 @@ import {
 } from 'lucide-react';
 import { SAMPLE_NOTEBOOKS, SampleNotebook } from '../data/scannerSamples';
 import { exportScannerToPdf } from '../utils/exportScannerPdf';
+import { getUserItem, setUserItem } from '../utils/userStorage';
+import { saveUserRecentScans } from '../firebase';
 
 type ScanFilterMode = 'all' | 'notes' | 'questions';
 
@@ -379,10 +381,10 @@ export const ProblemScannerView: React.FC = () => {
     }
   };
 
-  // Save to Recent Scans (LocalStorage)
+  // Save to Recent Scans (Email-Scoped LocalStorage + Firestore)
   const saveToRecentScans = (data: ScannerResultData, thumb: string) => {
     try {
-      const existing = localStorage.getItem('studybot_recent_scans');
+      const existing = getUserItem('studybot_recent_scans');
       const list = existing ? JSON.parse(existing) : [];
       const newScan = {
         id: `scan-${Date.now()}`,
@@ -393,7 +395,9 @@ export const ProblemScannerView: React.FC = () => {
         data,
       };
       const updated = [newScan, ...list.filter((x: any) => x.title !== data.chapterTitle)].slice(0, 8);
-      localStorage.setItem('studybot_recent_scans', JSON.stringify(updated));
+      setUserItem('studybot_recent_scans', JSON.stringify(updated));
+      saveUserRecentScans('', updated).catch(() => {});
+      window.dispatchEvent(new CustomEvent('studybot:scans-updated'));
     } catch (_) {}
   };
 

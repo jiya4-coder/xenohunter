@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStudy } from '../context/StudyContext';
-import { Bot, Mail, CheckCircle, ArrowLeft, Sparkles } from 'lucide-react';
+import { Bot, Mail, CheckCircle, ArrowLeft, Sparkles, UserCheck, ChevronRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { getSavedEmailAccounts, SavedEmailAccount } from '../utils/userStorage';
 
 const testimonials = [
   { q: 'My Physics marks jumped from 61 to 88 in one term!', n: 'Aarav · Class 10' },
@@ -14,9 +15,9 @@ export const SignInView: React.FC = () => {
   const {
     loginWithGoogle,
     loginWithLovable,
+    loginWithEmailDirect,
     loginWithEmailOtp,
     verifyEmailOtp,
-    currentUser,
   } = useStudy();
 
   const [step, setStep] = useState<'email' | 'otp' | 'done'>('email');
@@ -26,10 +27,15 @@ export const SignInView: React.FC = () => {
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [timerSeconds, setTimerSeconds] = useState(60);
   const [otpError, setOtpError] = useState<string | null>(null);
+  const [savedAccounts, setSavedAccounts] = useState<SavedEmailAccount[]>(() => getSavedEmailAccounts());
 
   const otpInputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  useEffect(() => {
+    setSavedAccounts(getSavedEmailAccounts());
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -48,7 +54,7 @@ export const SignInView: React.FC = () => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      await loginWithGoogle();
+      await loginWithGoogle(isValidEmail ? email : undefined);
       try {
         confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
       } catch {}
@@ -62,7 +68,7 @@ export const SignInView: React.FC = () => {
   const handleLovableSignIn = async () => {
     setLoading(true);
     try {
-      await loginWithLovable();
+      await loginWithLovable(isValidEmail ? email : undefined);
       try {
         confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
       } catch {}
@@ -73,18 +79,32 @@ export const SignInView: React.FC = () => {
     }
   };
 
+  const handleDirectEmailLogin = async (targetEmail: string, displayName?: string) => {
+    if (!targetEmail || loading) return;
+    setLoading(true);
+    try {
+      await loginWithEmailDirect(targetEmail, displayName);
+      try {
+        confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+      } catch {}
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValidEmail || loading) return;
 
     setLoading(true);
+    setOtpError(null);
     try {
       await loginWithEmailOtp(email);
       setStep('otp');
       setTimerSeconds(60);
       setTimeout(() => otpInputsRef.current[0]?.focus(), 150);
     } catch (err: any) {
-      alert(err.message || 'Failed to send code');
+      setOtpError(err.message || 'Failed to send code');
     } finally {
       setLoading(false);
     }
@@ -134,7 +154,7 @@ export const SignInView: React.FC = () => {
 
   return (
     <div className="grid min-h-[100dvh] w-screen bg-[#07090e] md:grid-cols-2 text-foreground select-none">
-      {/* 1. Left Hero Showcase (matching Image 1) */}
+      {/* 1. Left Hero Showcase */}
       <section
         className="relative hidden flex-col justify-between overflow-hidden p-8 md:p-12 md:flex"
         style={{
@@ -168,13 +188,10 @@ export const SignInView: React.FC = () => {
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
               >
-                {/* Blue book */}
                 <rect x="18" y="22" width="34" height="26" rx="4" fill="#38bdf8" />
                 <rect x="22" y="24" width="4" height="22" rx="1.5" fill="#0284c7" />
-                {/* Pink book */}
                 <rect x="14" y="16" width="34" height="26" rx="4" fill="#ec4899" />
                 <rect x="18" y="18" width="4" height="22" rx="1.5" fill="#be185d" />
-                {/* Green book */}
                 <rect x="10" y="10" width="34" height="26" rx="4" fill="#4ade80" />
                 <rect x="14" y="12" width="4" height="22" rx="1.5" fill="#16a34a" />
               </svg>
@@ -186,10 +203,10 @@ export const SignInView: React.FC = () => {
               <span>Smart AI</span>
             </div>
 
-            {/* Floating Badge: 7 day streak (right) */}
+            {/* Floating Badge: Email Synced */}
             <div className="absolute -right-6 bottom-12 flex items-center gap-1.5 rounded-full border border-orange-500/40 bg-[#261814]/90 px-3 py-1 text-xs font-bold text-orange-300 shadow-lg backdrop-blur-md">
-              <span>🔥</span>
-              <span>7 day streak</span>
+              <span>📧</span>
+              <span>Synced by Email</span>
             </div>
 
             {/* Floating Badge: NCERT 2026-27 (bottom) */}
@@ -211,7 +228,7 @@ export const SignInView: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. Right Auth Panel (matching Image 1) */}
+      {/* 2. Right Auth Panel */}
       <section className="flex items-center justify-center p-6 md:p-12 relative">
         <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d1222] p-8 shadow-2xl">
           {step === 'email' && (
@@ -222,18 +239,97 @@ export const SignInView: React.FC = () => {
                   Welcome to <span className="text-[#3b82f6]">StudyBot AI</span>
                 </h1>
                 <p className="mt-1.5 text-xs md:text-sm text-slate-400">
-                  Sign in or create an account — no password needed.
+                  Sign in with your Email ID — all your study progress, notes, mock tests, and badges are stored according to your email.
                 </p>
               </div>
 
+              {/* Email Form (Primary) */}
+              <form onSubmit={handleSendCode} className="space-y-3.5">
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1.5" htmlFor="email-input">
+                    Enter your Email ID
+                  </label>
+                  <div className="relative flex items-center rounded-xl border border-white/10 bg-[#070a14] px-3.5 py-3 focus-within:border-[#3b82f6] transition-all">
+                    <Mail className="h-4 w-4 text-slate-500 mr-2.5" />
+                    <input
+                      id="email-input"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value.trim())}
+                      placeholder="you@school.com"
+                      className="w-full bg-transparent text-sm text-white placeholder:text-slate-600 focus:outline-none"
+                    />
+                    {isValidEmail && <CheckCircle className="h-4 w-4 text-emerald-400" />}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    disabled={!isValidEmail || loading}
+                    onClick={() => handleDirectEmailLogin(email)}
+                    className="w-full rounded-xl bg-[#2563eb] py-3 text-xs sm:text-sm font-bold text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:bg-[#1d4ed8] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Signing in…' : 'Sign In with Email ID'}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!isValidEmail || loading}
+                    className="w-full rounded-xl border border-blue-500/40 bg-blue-500/10 py-3 text-xs sm:text-sm font-bold text-blue-300 hover:bg-blue-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Verify via 6-Digit Code
+                  </button>
+                </div>
+              </form>
+
+              {/* Saved Email Accounts on this Device */}
+              {savedAccounts.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between text-[0.7rem] font-bold uppercase tracking-wider text-slate-400">
+                    <span className="flex items-center gap-1.5">
+                      <UserCheck className="h-3.5 w-3.5 text-emerald-400" />
+                      Saved Email Profiles
+                    </span>
+                    <span className="text-[0.65rem] text-slate-500 font-normal">Tap to load data</span>
+                  </div>
+                  <div className="max-h-32 overflow-y-auto space-y-1.5 pr-1">
+                    {savedAccounts.map((acc) => (
+                      <button
+                        key={acc.email}
+                        type="button"
+                        onClick={() => handleDirectEmailLogin(acc.email, acc.displayName)}
+                        className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-[#12182b] px-3.5 py-2 text-left text-xs hover:border-blue-500/50 hover:bg-[#17213a] transition-all group"
+                      >
+                        <div className="truncate pr-2">
+                          <div className="font-bold text-white group-hover:text-blue-300 truncate">
+                            {acc.email}
+                          </div>
+                          <div className="text-[0.65rem] text-slate-400">
+                            Profile: {acc.displayName}
+                          </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-blue-400 shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Divider */}
+              <div className="flex items-center gap-3 text-xs text-slate-500">
+                <span className="h-px flex-1 bg-white/10" />
+                <span>or continue with</span>
+                <span className="h-px flex-1 bg-white/10" />
+              </div>
+
               {/* OAuth Action Buttons */}
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {/* Continue with Google */}
                 <button
                   type="button"
                   onClick={handleGoogleSignIn}
                   disabled={loading}
-                  className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-[#161c30] px-4 py-3.5 text-sm font-bold text-white hover:border-[#3b82f6] hover:bg-[#1a233d] transition-all disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-[#161c30] px-4 py-3 text-sm font-bold text-white hover:border-[#3b82f6] hover:bg-[#1a233d] transition-all disabled:opacity-50"
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24">
                     <path
@@ -261,51 +357,14 @@ export const SignInView: React.FC = () => {
                   type="button"
                   onClick={handleLovableSignIn}
                   disabled={loading}
-                  className="flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3.5 text-sm font-bold text-slate-900 shadow-md hover:bg-slate-100 transition-all disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-bold text-slate-900 shadow-md hover:bg-slate-100 transition-all disabled:opacity-50"
                 >
-                  {/* Lovable heart icon */}
                   <span className="flex h-5 w-5 items-center justify-center text-rose-500 text-base">
                     ❤️
                   </span>
                   <span>Continue with Lovable</span>
                 </button>
               </div>
-
-              {/* Divider */}
-              <div className="flex items-center gap-3 text-xs text-slate-500">
-                <span className="h-px flex-1 bg-white/10" />
-                <span>or with email</span>
-                <span className="h-px flex-1 bg-white/10" />
-              </div>
-
-              {/* Email Form */}
-              <form onSubmit={handleSendCode} className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-300 block mb-1.5" htmlFor="email-input">
-                    Email address
-                  </label>
-                  <div className="relative flex items-center rounded-xl border border-white/10 bg-[#070a14] px-3.5 py-3 focus-within:border-[#3b82f6] transition-all">
-                    <Mail className="h-4 w-4 text-slate-500 mr-2.5" />
-                    <input
-                      id="email-input"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value.trim())}
-                      placeholder="you@school.com"
-                      className="w-full bg-transparent text-sm text-white placeholder:text-slate-600 focus:outline-none"
-                    />
-                    {isValidEmail && <CheckCircle className="h-4 w-4 text-emerald-400" />}
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={!isValidEmail || loading}
-                  className="w-full rounded-xl bg-[#2563eb] py-3.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:bg-[#1d4ed8] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Sending code…' : 'Send 6-digit code'}
-                </button>
-              </form>
             </div>
           )}
 
@@ -407,13 +466,13 @@ export const SignInView: React.FC = () => {
               <h2 className="text-2xl font-extrabold text-white">Verified successfully!</h2>
               <p className="text-xs text-slate-400 flex items-center justify-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 text-blue-400" />
-                Setting up your personalized study space…
+                Loading study space for {email}…
               </p>
             </div>
           )}
         </div>
 
-        {/* Edit with Lovable badge in bottom right (as seen in Image 1) */}
+        {/* Edit with Lovable badge in bottom right */}
         <div className="fixed bottom-3 right-3 flex items-center gap-1.5 rounded-lg border border-white/10 bg-[#161616] px-2.5 py-1 text-[0.7rem] text-slate-400">
           <span>Edit with</span>
           <span className="font-bold text-white flex items-center gap-0.5">❤️ Lovable</span>

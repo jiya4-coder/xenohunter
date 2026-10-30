@@ -2,11 +2,12 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "User profile with study settings and statistics.",
+      "description": "User profile, study statistics, daily study logs, mock tests, and recent scans keyed by normalized Email ID.",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
+        "emailKey": { "type": "string" },
         "displayName": { "type": "string" },
         "photoURL": { "type": "string" },
         "classLevel": { "type": "string" },
@@ -16,13 +17,14 @@
         "dayStreak": { "type": "number" },
         "questionsSolved": { "type": "number" },
         "testAccuracy": { "type": "number" },
-        "studyTimeMinutes": { "type": "number" }
+        "studyTimeMinutes": { "type": "number" },
+        "stars": { "type": "number" }
       },
-      "required": ["uid"]
+      "required": ["emailKey"]
     },
     "Mistake": {
       "title": "Mistake",
-      "description": "Mistake recorded from mock tests or chapter quizzes for mastery review.",
+      "description": "Mistake recorded from mock tests or chapter quizzes for mastery review under the user's email ID.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -43,7 +45,7 @@
     },
     "StudyNote": {
       "title": "StudyNote",
-      "description": "Generated or saved study revision note.",
+      "description": "Generated or saved study revision note stored under the user's email ID.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -57,7 +59,7 @@
     },
     "ChatMessage": {
       "title": "ChatMessage",
-      "description": "Chat prompt history item from AI Tutor.",
+      "description": "Chat prompt history item from AI Tutor stored under the user's email ID.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -72,7 +74,7 @@
     },
     "PlannerSchedule": {
       "title": "PlannerSchedule",
-      "description": "Student master timetable and exam dates configuration.",
+      "description": "Student master timetable and exam dates configuration stored under the user's email ID.",
       "type": "object",
       "properties": {
         "classNum": { "type": "number" },
@@ -80,28 +82,47 @@
         "studyWindow": { "type": "string" }
       },
       "required": ["classNum", "dailyHours"]
+    },
+    "StudyReminder": {
+      "title": "StudyReminder",
+      "description": "Custom or preset study reminder notification scheduled by a student under their email ID.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "time": { "type": "string" },
+        "subject": { "type": "string" },
+        "repeat": { "type": "string" },
+        "durationMinutes": { "type": "number" },
+        "enabled": { "type": "boolean" }
+      },
+      "required": ["id", "title", "time", "enabled"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "#/entities/User",
-      "description": "Stores user profiles and study configurations."
+      "description": "Stores user profiles, study stats, mock test history, reminders, and daily study logs keyed by email ID."
     },
     "/users/{userId}/mistakes/{mistakeId}": {
       "schema": "#/entities/Mistake",
-      "description": "Stores mistake records for the student Mistake Book."
+      "description": "Stores mistake records for the student Mistake Book per email ID."
     },
     "/users/{userId}/notes/{noteId}": {
       "schema": "#/entities/StudyNote",
-      "description": "Stores saved notes for the student."
+      "description": "Stores saved notes for the student per email ID."
     },
     "/users/{userId}/chat_messages/{msgId}": {
       "schema": "#/entities/ChatMessage",
-      "description": "Stores AI Tutor prompts history."
+      "description": "Stores AI Tutor prompts history per email ID."
     },
     "/users/{userId}/planner/{plannerId}": {
       "schema": "#/entities/PlannerSchedule",
-      "description": "Stores exam schedule and timetable."
+      "description": "Stores exam schedule and timetable per email ID."
+    },
+    "/users/{userId}/reminders/{reminderId}": {
+      "schema": "#/entities/StudyReminder",
+      "description": "Stores study reminders per email ID."
     }
   }
 }

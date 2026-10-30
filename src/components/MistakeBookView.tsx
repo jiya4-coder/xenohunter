@@ -47,7 +47,7 @@ export const MistakeBookView: React.FC = () => {
   const totalMistakes = mistakes.length;
   const masteredCount = mistakes.filter((m) => m.mastered).length;
   const pendingCount = totalMistakes - masteredCount;
-  const masteryPercentage = totalMistakes > 0 ? Math.round((masteredCount / totalMistakes) * 100) : 100;
+  const masteryPercentage = totalMistakes > 0 ? Math.round((masteredCount / totalMistakes) * 100) : 0;
 
   const filteredMistakes = mistakes.filter((m) => {
     const matchesSearch =

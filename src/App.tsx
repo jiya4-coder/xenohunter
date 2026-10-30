@@ -9,12 +9,10 @@ import { AppShell } from './components/AppShell';
 import { Dashboard } from './components/Dashboard';
 import { StudyChat } from './components/StudyChat';
 import { MockTestView } from './components/MockTestView';
-import { FlashcardsView } from './components/FlashcardsView';
 import { SignInView } from './components/SignInView';
 import { LovableModalView } from './components/LovableModalView';
 import { OnboardingModal } from './components/OnboardingModal';
-import { CustomizeProfileModal } from './components/CustomizeProfileModal';
-import { FormulaVaultModal } from './components/FormulaVaultModal';
+import { CustomizeProfileModal, SettingsView } from './components/CustomizeProfileModal';
 import { FocusWidget } from './components/FocusWidget';
 import { NotesView } from './components/NotesView';
 import { MistakeBookView } from './components/MistakeBookView';
@@ -23,9 +21,10 @@ import { StudyPlannerView } from './components/StudyPlannerView';
 import { ProblemScannerView } from './components/ProblemScannerView';
 import { ProgressRoadmapView } from './components/ProgressRoadmapView';
 import { AchievementsView } from './components/AchievementsView';
+import { StudyTimerView } from './components/StudyTimerView';
 
 const MainContent: React.FC = () => {
-  const { activeTab, isSignedIn } = useStudy();
+  const { activeTab, isSignedIn, currentUser } = useStudy();
 
   if (!isSignedIn) {
     return <SignInView />;
@@ -58,57 +57,6 @@ const MainContent: React.FC = () => {
         return <NCERTBooksView />;
       case '/mock-test':
         return <MockTestView />;
-      case '/practice':
-        return (
-          <StudyChat
-            mode="practice"
-            title="Practice"
-            subtitle="One problem at a time. Answer, get feedback, level up."
-            placeholder="What do you want to practice? e.g. Quadratic equations"
-            suggestions={[
-              'Quadratic equations',
-              'Chemistry balancing',
-              'English grammar',
-              'Physics: motion',
-              'Trigonometric heights & distances',
-              'Genetics Punnett squares',
-            ]}
-          />
-        );
-      case '/revision':
-        return (
-          <StudyChat
-            mode="revision"
-            title="Revision"
-            subtitle="Quick revision sheets: key ideas, formulas, mnemonics and rapid-fire questions."
-            placeholder="Chapter to revise… e.g. Class 10 Light – Reflection"
-            suggestions={[
-              'Class 10 Chemical Reactions',
-              'Class 12 Electrostatics',
-              'Class 9 French Revolution',
-              'Trigonometry formulas',
-              'Carbon and its Compounds',
-              'Cell Structure & Functions',
-            ]}
-          />
-        );
-      case '/flashcards':
-        return <FlashcardsView />;
-      case '/summarize':
-        return (
-          <StudyChat
-            mode="summarize"
-            multiline={true}
-            title="Notes Summarizer"
-            subtitle="Paste your notes — get a TL;DR, key points and review questions."
-            placeholder="Paste your notes here, then press the send button…"
-            suggestions={[
-              'Summarize: The mitochondria is the powerhouse of the cell. It produces ATP through cellular respiration, generating chemical energy for biochemical reactions…',
-              "Summarize: Newton's First Law states an object remains in rest or uniform motion unless acted upon by an external force…",
-              'Summarize: The French Revolution began in 1789, overthrowing the monarchy and establishing principles of liberty, equality, and fraternity…',
-            ]}
-          />
-        );
       case '/planner':
         return <StudyPlannerView />;
       case '/scanner':
@@ -117,6 +65,10 @@ const MainContent: React.FC = () => {
         return <ProgressRoadmapView />;
       case '/achievements':
         return <AchievementsView />;
+      case '/timer':
+        return <StudyTimerView />;
+      case '/settings':
+        return <SettingsView />;
       case '/':
       default:
         return <Dashboard />;
@@ -124,12 +76,11 @@ const MainContent: React.FC = () => {
   };
 
   return (
-    <AppShell>
+    <AppShell key={currentUser?.email || 'guest'}>
       {renderActiveView()}
       <LovableModalView />
       <OnboardingModal />
       <CustomizeProfileModal />
-      <FormulaVaultModal />
       <FocusWidget />
     </AppShell>
   );

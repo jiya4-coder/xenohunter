@@ -1,53 +1,293 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStudy } from '../context/StudyContext';
 import {
-  SlidersHorizontal,
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
   XCircle,
   RotateCcw,
-  Sparkles,
   Trophy,
   Loader2,
   Clock,
-  Bookmark,
   Flag,
-  Award,
-  ChevronRight,
   AlertCircle,
   FileText,
   Check,
+  Search,
+  Bell,
+  ChevronDown,
+  Calculator,
+  FlaskConical,
+  BookOpen,
+  Globe,
+  Languages,
+  ListChecks,
+  BarChart3,
+  HelpCircle,
+  MinusCircle,
+  Play,
+  Plus,
+  Minus,
+  Pencil,
+  Info,
+  X,
+  Sparkles,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { MockQuestion, MockTestResult } from '../types';
 import { safeFetchJson } from '../utils/api';
 import { recordMockTest } from '../utils/achievementEngine';
 
+type SubjectOption = 'Mathematics' | 'Science' | 'English' | 'Social Science' | 'Hindi';
+
+const SUBJECT_TOPICS: Record<SubjectOption, string[]> = {
+  Mathematics: [
+    'Quadratic Equations',
+    'Real Numbers',
+    'Polynomials',
+    'Pair of Linear Equations in Two Variables',
+    'Arithmetic Progressions',
+    'Triangles & Similarity',
+    'Coordinate Geometry',
+    'Introduction to Trigonometry',
+    'Some Applications of Trigonometry',
+    'Circles',
+    'Areas Related to Circles',
+    'Surface Areas and Volumes',
+    'Statistics',
+    'Probability',
+  ],
+  Science: [
+    'Chemical Reactions and Equations',
+    'Acids, Bases and Salts',
+    'Metals and Non-metals',
+    'Carbon and its Compounds',
+    'Life Processes & Photosynthesis',
+    'Control and Coordination',
+    'How do Organisms Reproduce?',
+    'Heredity and Evolution',
+    'Light – Reflection and Refraction',
+    'The Human Eye and the Colourful World',
+    'Electricity & Ohm’s Law',
+    'Magnetic Effects of Electric Current',
+    'Motion, Force and Newton’s Laws',
+    'Gravitation & Floatation',
+    'Cell: The Fundamental Unit of Life',
+  ],
+  English: [
+    'Tenses & Verb Forms',
+    'Modals & Auxiliaries',
+    'Subject-Verb Concord',
+    'Reported Speech (Direct & Indirect)',
+    'Active and Passive Voice',
+    'Determiners & Articles',
+    'Clauses & Prepositions',
+    'Reading Comprehension & Inference',
+    'Figures of Speech & Poetic Devices',
+    'Formal Letter & Analytical Paragraph',
+  ],
+  'Social Science': [
+    'The Rise of Nationalism in Europe',
+    'Nationalism in India',
+    'The French Revolution',
+    'Resources and Development',
+    'Water Resources & Agriculture',
+    'Minerals and Energy Resources',
+    'Manufacturing Industries',
+    'Power Sharing & Federalism',
+    'Political Parties & Outcomes of Democracy',
+    'Development & Sectors of the Indian Economy',
+    'Money and Credit',
+    'Globalisation and the Indian Economy',
+  ],
+  Hindi: [
+    'संधि और संधि-विच्छेद (Sandhi)',
+    'समास और उसके भेद (Samas)',
+    'अलंकार — शब्दालंकार और अर्थालंकार',
+    'मुहावरे और लोकोक्तियाँ (Idioms)',
+    'उपसर्ग और प्रत्यय (Prefixes & Suffixes)',
+    'पदबंध और वाक्य रूपांतरण',
+    'वाच्य — कर्तृवाच्य, कर्मवाच्य, भाववाच्य',
+    'संज्ञा, सर्वनाम, विशेषण और क्रिया',
+    'अपठित गद्यांश एवं पद्यांश बोध',
+  ],
+};
+
+// Client-side topic-aware fallback generator so any topic works offline or if API is busy
+function buildClientFallbackQuestions(
+  rawTopic: string,
+  subject: SubjectOption,
+  classLevel: string,
+  difficulty: string,
+  count: number
+): MockQuestion[] {
+  const cleanTopic = rawTopic.trim() || 'Quadratic Equations';
+  const lower = `${subject} ${cleanTopic}`.toLowerCase();
+
+  type QTemplate = { q: string; opts: [string, string, string, string]; ans: number; exp: string };
+
+  const quadraticBank: QTemplate[] = [
+    {
+      q: 'Which of the following is the standard form of a quadratic equation in variable x?',
+      opts: ['ax² + bx + c = 0, where a ≠ 0', 'ax + b = 0, where a ≠ 0', 'ax³ + bx² + cx + d = 0', 'ax² + bx + c = 0, where a = 0'],
+      ans: 0,
+      exp: 'A quadratic equation in x is a polynomial equation of degree 2 of the form ax² + bx + c = 0 with a ≠ 0.',
+    },
+    {
+      q: 'What is the discriminant (D) of the quadratic equation ax² + bx + c = 0?',
+      opts: ['b² - 4ac', 'b² + 4ac', '4ac - b²', '2b - 4ac'],
+      ans: 0,
+      exp: 'The discriminant D = b² - 4ac determines whether the roots are real and distinct (D > 0), real and equal (D = 0), or imaginary (D < 0).',
+    },
+    {
+      q: 'What are the roots of the quadratic equation x² - 5x + 6 = 0?',
+      opts: ['x = 2 and x = 3', 'x = -2 and x = -3', 'x = 1 and x = 6', 'x = -1 and x = 6'],
+      ans: 0,
+      exp: 'Splitting the middle term: x² - 2x - 3x + 6 = (x - 2)(x - 3) = 0, giving x = 2 and x = 3.',
+    },
+    {
+      q: 'If the quadratic equation 2x² + kx + 3 = 0 has two equal real roots, then the value of k is:',
+      opts: ['±2√6', '±6', '±3√2', '4'],
+      ans: 0,
+      exp: 'For equal real roots, D = b² - 4ac = 0 ⇒ k² - 4(2)(3) = 0 ⇒ k² = 24 ⇒ k = ±2√6.',
+    },
+    {
+      q: 'What is the nature of the roots of the quadratic equation 2x² - 4x + 3 = 0?',
+      opts: ['No real roots', 'Two distinct real roots', 'Two equal real roots', 'Rational and unequal roots'],
+      ans: 0,
+      exp: 'Discriminant D = (-4)² - 4(2)(3) = 16 - 24 = -8 < 0, so the equation has no real roots.',
+    },
+    {
+      q: 'If x = 2 is a root of the quadratic equation 2x² + kx - 6 = 0, then the value of k is:',
+      opts: ['-1', '1', '2', '-2'],
+      ans: 0,
+      exp: 'Substituting x = 2: 2(2)² + k(2) - 6 = 0 ⇒ 8 + 2k - 6 = 0 ⇒ 2k = -2 ⇒ k = -1.',
+    },
+  ];
+
+  const genericTopicBank: QTemplate[] = [
+    {
+      q: `In the context of "${cleanTopic}" (${subject}), which of the following best states its foundational principle?`,
+      opts: [
+        `It defines the core concepts, governing laws/rules, and analytical relationships of ${cleanTopic}.`,
+        `It states that ${cleanTopic} has no relation to standard ${subject} principles.`,
+        `It applies only when all measurable parameters of ${cleanTopic} are zero.`,
+        `None of the above statements is valid for ${cleanTopic}.`,
+      ],
+      ans: 0,
+      exp: `In ${subject} (${classLevel}), ${cleanTopic} is governed by well-defined conceptual rules and systematic principles.`,
+    },
+    {
+      q: `Which approach is most accurate when solving a ${difficulty.toLowerCase()}-level problem on "${cleanTopic}"?`,
+      opts: [
+        `Identify the given parameters, apply the core formula/rule of ${cleanTopic}, and verify units or context.`,
+        `Ignore the given conditions and estimate an arbitrary answer.`,
+        `Skip intermediate steps and reverse the sign of all values.`,
+        `Assume ${cleanTopic} does not follow standard ${subject} conventions.`,
+      ],
+      ans: 0,
+      exp: `Following a structured step-by-step method using the core rule of ${cleanTopic} ensures 100% accuracy in exams.`,
+    },
+    {
+      q: `Which of the following is a key high-yield takeaway from the chapter/topic "${cleanTopic}"?`,
+      opts: [
+        `Understanding both the theoretical definition and practical application problems of ${cleanTopic}.`,
+        `Memorizing isolated numbers without understanding how ${cleanTopic} works.`,
+        `Omitting diagrams, formulas, and examples while studying ${cleanTopic}.`,
+        `Treating ${cleanTopic} as unrelated to the rest of ${subject}.`,
+      ],
+      ans: 0,
+      exp: `Board and school exams test both conceptual clarity and application-based problem solving on ${cleanTopic}.`,
+    },
+  ];
+
+  const pool = lower.includes('quadratic')
+    ? [...quadraticBank, ...genericTopicBank]
+    : genericTopicBank;
+
+  return Array.from({ length: count }, (_, i) => {
+    const item = pool[i % pool.length];
+    const shift = i % 4;
+    const rotatedOpts = [
+      item.opts[(0 + 4 - shift) % 4],
+      item.opts[(1 + 4 - shift) % 4],
+      item.opts[(2 + 4 - shift) % 4],
+      item.opts[(3 + 4 - shift) % 4],
+    ];
+    const newAns = (item.ans + shift) % 4;
+    return {
+      id: i + 1,
+      question:
+        i < pool.length
+          ? item.q
+          : `[${cleanTopic} · Q${i + 1}] ${item.q}`,
+      options: rotatedOpts,
+      answer: newAns,
+      explanation: item.exp,
+    };
+  });
+}
+
 export const MockTestView: React.FC = () => {
-  const { profile, addQuestionAttempt, addStars, addStudyMinutes, setActiveTab, addMistake } = useStudy();
+  const {
+    profile,
+    currentUser,
+    addQuestionAttempt,
+    addStars,
+    addStudyMinutes,
+    setActiveTab,
+    addMistake,
+    setCustomizeOpen,
+  } = useStudy();
 
-  const [topic, setTopic] = useState('Science: Motion, Force & Laws (Class 9)');
-  const [subject, setSubject] = useState<'Science' | 'Mathematics' | 'Social Science' | 'English'>('Science');
+  // Core Mock Test Configuration State (Defaulting to match screenshot)
+  const [subject, setSubject] = useState<SubjectOption>('Mathematics');
+  const [topic, setTopic] = useState<string>('Quadratic Equations');
   const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
-  const [questionCount, setQuestionCount] = useState(5);
-  const [negativeMarking, setNegativeMarking] = useState(true);
+  const [questionCount, setQuestionCount] = useState<number>(30);
+  const [negativeMarking, setNegativeMarking] = useState<boolean>(true);
 
-  const [loading, setLoading] = useState(false);
+  // Marking Scheme state (+4 for correct | -1 for wrong by default, editable via "Edit")
+  const [correctMarks, setCorrectMarks] = useState<number>(4);
+  const [wrongPenalty, setWrongPenalty] = useState<number>(1);
+  const [editingScheme, setEditingScheme] = useState<boolean>(false);
+
+  // Top search bar & topic dropdown/modal states
+  const [topSearchQuery, setTopSearchQuery] = useState<string>('');
+  const [topicDropdownOpen, setTopicDropdownOpen] = useState<boolean>(false);
+  const [allChaptersModalOpen, setAllChaptersModalOpen] = useState<boolean>(false);
+  const [customTopicModalInput, setCustomTopicModalInput] = useState<string>('');
+  const topicDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Active test state
-  const [testActive, setTestActive] = useState(false);
+  const [testActive, setTestActive] = useState<boolean>(false);
   const [questions, setQuestions] = useState<MockQuestion[]>([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [userAnswers, setUserAnswers] = useState<(number | null)[]>([]);
   const [markedForReview, setMarkedForReview] = useState<boolean[]>([]);
-  const [testSubmitted, setTestSubmitted] = useState(false);
+  const [testSubmitted, setTestSubmitted] = useState<boolean>(false);
   const [testResult, setTestResult] = useState<MockTestResult | null>(null);
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState<boolean>(false);
 
-  // Test timer
-  const [secondsRemaining, setSecondsRemaining] = useState(300);
+  // Test timer (in seconds)
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(1800);
+
+  // Close topic dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        topicDropdownRef.current &&
+        !topicDropdownRef.current.contains(event.target as Node)
+      ) {
+        setTopicDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (!testActive || testSubmitted) return;
@@ -69,9 +309,8 @@ export const MockTestView: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [testActive, testSubmitted]);
+  }, [testActive, testSubmitted, secondsRemaining]);
 
-  // Client normalizer to ensure answers are numbers
   const normalizeQuestionsClient = (rawList: any[]): MockQuestion[] => {
     return rawList.map((q, idx) => {
       let answerIdx = 0;
@@ -89,42 +328,60 @@ export const MockTestView: React.FC = () => {
       return {
         id: q.id || idx + 1,
         question: q.question,
-        options: Array.isArray(q.options) && q.options.length >= 2 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D'],
+        options:
+          Array.isArray(q.options) && q.options.length >= 2
+            ? q.options
+            : ['Option A', 'Option B', 'Option C', 'Option D'],
         answer: answerIdx,
-        explanation: q.explanation || 'Standard textbook explanation.',
+        explanation: q.explanation || 'Step-by-step syllabus explanation.',
       };
     });
   };
 
-  const handleStartTest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!topic.trim()) return;
+  const handleSelectSubject = (newSubject: SubjectOption) => {
+    setSubject(newSubject);
+    // Only auto-switch topic if the current topic belongs to another subject's default list
+    const isPresetFromOtherSubject = (Object.keys(SUBJECT_TOPICS) as SubjectOption[]).some(
+      (s) => s !== newSubject && SUBJECT_TOPICS[s].includes(topic)
+    );
+    if (isPresetFromOtherSubject || !topic.trim()) {
+      setTopic(SUBJECT_TOPICS[newSubject][0]);
+    }
+  };
+
+  const handleAdjustQuestions = (delta: number) => {
+    setQuestionCount((prev) => Math.min(60, Math.max(1, prev + delta)));
+  };
+
+  const handleStartTest = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const effectiveTopic = topic.trim() || SUBJECT_TOPICS[subject][0] || 'General Syllabus';
+    if (!topic.trim()) {
+      setTopic(effectiveTopic);
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      const fallbackQuestions: MockQuestion[] = Array.from({ length: questionCount }, (_, i) => ({
-        id: i + 1,
-        question: `Question ${i + 1} (${subject} · ${profile.classLevel}): Which fundamental concept accurately applies to "${topic}"?`,
-        options: [
-          'It is a proven scientific law that follows the conservation principle.',
-          'It is an irreversible process occurring only at absolute zero.',
-          'It applies only to non-inertial frames of reference.',
-          'None of the above options are conceptually valid.',
-        ],
-        answer: 0,
-        explanation: `In ${subject} for ${profile.classLevel}, this principle is fundamental and governed by standard conservation and syllabus definitions.`,
-      }));
+      const clampedQCount = Math.min(60, Math.max(1, questionCount));
+      const fallbackQuestions = buildClientFallbackQuestions(
+        effectiveTopic,
+        subject,
+        profile.classLevel || 'Class 10',
+        difficulty,
+        clampedQCount
+      );
 
       const data = await safeFetchJson<{ questions: MockQuestion[] }>(
         '/api/generate-mock-test',
         {
           method: 'POST',
           body: JSON.stringify({
-            topic: `${subject}: ${topic}`,
+            topic: effectiveTopic,
+            subject,
             difficulty,
-            count: questionCount,
+            count: clampedQCount,
             negativeMarking,
             studentProfile: profile,
           }),
@@ -132,13 +389,14 @@ export const MockTestView: React.FC = () => {
         { questions: fallbackQuestions }
       );
 
-      const rawQuestions = data.questions && data.questions.length > 0 ? data.questions : fallbackQuestions;
-      const loadedQuestions = normalizeQuestionsClient(rawQuestions);
+      const rawQuestions =
+        data.questions && data.questions.length > 0 ? data.questions : fallbackQuestions;
+      const loadedQuestions = normalizeQuestionsClient(rawQuestions).slice(0, clampedQCount);
       setQuestions(loadedQuestions);
       setUserAnswers(new Array(loadedQuestions.length).fill(null));
       setMarkedForReview(new Array(loadedQuestions.length).fill(false));
       setCurrentQuestionIndex(0);
-      setSecondsRemaining(questionCount * 60); // 1 minute per question
+      setSecondsRemaining(loadedQuestions.length * 60); // 1 minute per question
       setTestActive(true);
       setTestSubmitted(false);
       setTestResult(null);
@@ -191,7 +449,6 @@ export const MockTestView: React.FC = () => {
       } else {
         wrong++;
         addQuestionAttempt(false);
-        // Automatically save to the student's Mistake Book!
         if (addMistake) {
           const wrongIdx = Number(userAns);
           const correctIdx = Number(q.answer);
@@ -212,8 +469,8 @@ export const MockTestView: React.FC = () => {
       }
     });
 
-    const marksPerCorrect = 1;
-    const penaltyPerWrong = negativeMarking ? 0.25 : 0;
+    const marksPerCorrect = correctMarks;
+    const penaltyPerWrong = negativeMarking ? wrongPenalty : 0;
     const finalScore = Math.max(0, correct * marksPerCorrect - wrong * penaltyPerWrong);
     const maxScore = questions.length * marksPerCorrect;
     const accuracy = Math.round((correct / (correct + wrong || 1)) * 100);
@@ -235,16 +492,20 @@ export const MockTestView: React.FC = () => {
 
     setTestResult(result);
     setTestSubmitted(true);
-    addStudyMinutes(Math.max(Math.ceil((questionCount * 60 - secondsRemaining) / 60), 2));
-    addStars(Math.round(finalScore * 5));
+    addStudyMinutes(Math.max(Math.ceil((questions.length * 60 - secondsRemaining) / 60), 2));
+    addStars(Math.max(5, Math.round(correct * 5)));
 
-    // Save to shared mock test records & trigger achievement engine
     recordMockTest({
       name: `Mock Test: ${topic}`,
       subject,
       score: Number(finalScore.toFixed(2)),
       maxScore,
-      focusArea: accuracy === 100 ? 'Flawless 100% Score!' : accuracy >= 90 ? 'Excellent score (90%+)' : `Revise: ${topic}`,
+      focusArea:
+        accuracy === 100
+          ? 'Flawless 100% Score!'
+          : accuracy >= 90
+          ? 'Excellent score (90%+)'
+          : `Revise: ${topic}`,
     });
 
     if (accuracy >= 70) {
@@ -260,678 +521,1492 @@ export const MockTestView: React.FC = () => {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const currQ = questions[currentQuestionIndex];
-
-  // Presets strictly for Class 4th to 9th
-  const classSyllabusPresets: Record<string, string[]> = {
-    Science: [
-      'Class 9: Motion & Force Laws',
-      'Class 8: Combustion & Flame',
-      'Class 7: Acids, Bases & Salts',
-      'Class 6: Light, Shadows & Reflections',
-      'Class 5: Human Body & Organs',
-      'Class 4: Living & Non-Living Things',
-    ],
-    Mathematics: [
-      'Class 9: Polynomials & Coordinate Geometry',
-      'Class 8: Linear Equations in One Variable',
-      'Class 7: Fractions & Decimals',
-      'Class 6: Integers & Basic Algebra',
-      'Class 5: Factors, Multiples & LCM/HCF',
-      'Class 4: Basic Multiplication & Division',
-    ],
-    'Social Science': [
-      'Class 9: French Revolution & Nazism',
-      'Class 8: Our Pasts III & British Rule',
-      'Class 7: Delhi Sultans & Mughal Empire',
-      'Class 6: Solar System & Early Humans',
-    ],
-    English: [
-      'Class 9: Tenses & Reported Speech',
-      'Class 8: Active & Passive Voice',
-      'Class 7: Prepositions & Conjunctions',
-      'Class 6: Nouns, Pronouns & Adjectives',
-    ],
+  const handleTopSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (topSearchQuery.trim()) {
+      setTopic(topSearchQuery.trim());
+      setTopSearchQuery('');
+    }
   };
 
+  const displayUserName = currentUser?.displayName || profile.name || 'Aarav Sharma';
+  const displayAvatarChar = displayUserName.trim().charAt(0).toUpperCase() || 'A';
+  const currQ = questions[currentQuestionIndex];
+  const currentSubjectTopics = SUBJECT_TOPICS[subject] || SUBJECT_TOPICS.Mathematics;
+
   return (
-    <div className="h-[calc(100vh-2.5rem)] overflow-y-auto bg-[#07090e] p-4 md:p-8 select-none font-['Sora']">
-      <div className="mx-auto max-w-5xl space-y-6">
-        {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-blue-500/10 border border-blue-500/30 px-3 py-0.5 text-xs font-bold text-blue-400">
-                PRO EXAM PORTAL
-              </span>
-              <span className="text-xs text-slate-400 font-semibold">
-                {profile.classLevel} · {profile.primaryExam}
-              </span>
-            </div>
-            <h1 className="mt-1 text-2xl md:text-3xl font-extrabold text-white">
-              Mock Examination Arena
-            </h1>
-            <p className="text-xs md:text-sm text-slate-400">
-              Exam-hall test simulator with live timer, question palette & marking rules.
-            </p>
-          </div>
-
-          {testActive && !testSubmitted && (
-            <div className="flex items-center gap-3">
-              <div
-                className={`flex items-center gap-2 rounded-xl px-4 py-2 border font-mono text-sm font-bold shadow-lg ${
-                  secondsRemaining < 60
-                    ? 'border-rose-500/60 bg-rose-500/15 text-rose-300 animate-pulse'
-                    : 'border-blue-500/40 bg-[#0d152a] text-blue-300'
-                }`}
-              >
-                <Clock className="h-4 w-4" />
-                <span>{formatTimer(secondsRemaining)}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowSubmitModal(true)}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500 shadow-md transition-all active:scale-95"
-              >
-                Submit Exam
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* 1. Setup Form */}
-        {!testActive ? (
-          <div className="rounded-3xl border border-white/10 bg-[#0d1222] p-6 md:p-8 shadow-2xl space-y-6">
-            <div className="flex items-center gap-2.5 text-white font-bold text-lg border-b border-white/10 pb-4">
-              <SlidersHorizontal className="h-5 w-5 text-blue-400" />
-              <span>Configure Your Examination Paper (Class 4th to 9th)</span>
-            </div>
-
-            <form onSubmit={handleStartTest} className="space-y-6">
-              {/* Subject selector */}
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-2">
-                  Select Subject
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  {(['Science', 'Mathematics', 'Social Science', 'English'] as const).map((sub) => (
-                    <button
-                      key={sub}
-                      type="button"
-                      onClick={() => {
-                        setSubject(sub);
-                        setTopic(classSyllabusPresets[sub][0] || 'General');
-                      }}
-                      className={`rounded-xl border p-3 text-xs md:text-sm font-bold transition-all text-center ${
-                        subject === sub
-                          ? 'border-blue-500 bg-blue-600/20 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)]'
-                          : 'border-white/10 bg-[#12182b] text-slate-400 hover:border-slate-600 hover:text-white'
-                      }`}
-                    >
-                      {sub}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Topic / Chapter */}
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-1.5">
-                  Chapter / Topic
-                </label>
-                <input
-                  type="text"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  placeholder="e.g. Motion & Laws, Fractions, French Revolution..."
-                  className="w-full rounded-xl border border-white/10 bg-[#080c18] px-4 py-3 text-sm text-white focus:border-blue-500 focus:outline-none"
-                  required
-                />
-                {/* Syllabus Quick Chips */}
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  <span className="text-[0.7rem] text-slate-500 self-center">Popular chapters:</span>
-                  {(classSyllabusPresets[subject] || []).slice(0, 4).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setTopic(p)}
-                      className="rounded-lg border border-white/5 bg-[#12182b] px-2.5 py-1 text-[0.68rem] text-slate-300 hover:border-blue-500/50 hover:text-white"
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Difficulty & Question count */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-2">
-                    Difficulty Level
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['Easy', 'Medium', 'Hard'] as const).map((diff) => (
-                      <button
-                        key={diff}
-                        type="button"
-                        onClick={() => setDifficulty(diff)}
-                        className={`rounded-xl border py-2.5 text-xs font-bold transition-all text-center ${
-                          difficulty === diff
-                            ? 'border-blue-500 bg-blue-600/20 text-white shadow-sm'
-                            : 'border-white/10 bg-[#12182b] text-slate-400 hover:border-slate-600'
-                        }`}
-                      >
-                        {diff}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
-                    <span>Number of Questions</span>
-                    <span className="text-blue-400 font-bold">{questionCount} Questions ({questionCount} mins)</span>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[5, 10, 15, 20].map((num) => (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => setQuestionCount(num)}
-                        className={`rounded-xl border py-2.5 text-xs font-bold transition-all text-center ${
-                          questionCount === num
-                            ? 'border-blue-500 bg-blue-600/20 text-white shadow-sm'
-                            : 'border-white/10 bg-[#12182b] text-slate-400 hover:border-slate-600'
-                        }`}
-                      >
-                        {num} Qs
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Negative Marking */}
-              <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#080c18] p-4">
-                <div>
-                  <h4 className="text-sm font-bold text-white">Negative Marking Policy</h4>
-                  <p className="text-xs text-slate-400">
-                    Correct: <strong className="text-emerald-400">+1.00</strong> · Incorrect:{' '}
-                    <strong className="text-rose-400">{negativeMarking ? '−0.25' : '0.00'}</strong> · Unattempted: 0
-                  </p>
-                </div>
+    <div className="h-[calc(100vh-2.5rem)] overflow-y-auto bg-[#030916] text-white select-none font-['Sora',sans-serif]">
+      {/* Background subtle radial glow matching the Study Bot AI Mock Test Dashboard */}
+      <div
+        className="min-h-full px-4 py-4 md:px-7 md:py-5"
+        style={{
+          background:
+            'radial-gradient(circle at 20% 10%, rgba(29, 78, 216, 0.14) 0%, transparent 45%), radial-gradient(circle at 85% 20%, rgba(14, 165, 233, 0.1) 0%, transparent 50%), #030916',
+        }}
+      >
+        <div className="mx-auto max-w-[1380px] space-y-5">
+          {/* ==================== TOP SEARCH & PROFILE BAR ==================== */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <form onSubmit={handleTopSearchSubmit} className="relative flex-1 max-w-2xl">
+              <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                value={topSearchQuery}
+                onChange={(e) => setTopSearchQuery(e.target.value)}
+                placeholder="Search anything... (chapters, topics, questions)"
+                className="w-full rounded-full border border-[#1a3360] bg-[#08152c]/90 pl-11 pr-24 py-2.5 text-xs md:text-sm text-white placeholder:text-slate-400 focus:border-[#38bdf8] focus:outline-none shadow-inner"
+              />
+              {topSearchQuery.trim() && (
                 <button
-                  type="button"
-                  onClick={() => setNegativeMarking(!negativeMarking)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    negativeMarking ? 'bg-blue-600' : 'bg-slate-700'
-                  }`}
+                  type="submit"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-[#2563eb] px-3 py-1 text-[11px] font-semibold text-white hover:bg-[#1d4ed8] transition-colors cursor-pointer"
                 >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      negativeMarking ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
+                  Set Topic
                 </button>
-              </div>
+              )}
+            </form>
 
-              {error && (
-                <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
-                  {error}
+            <div className="flex items-center gap-4">
+              {testActive && !testSubmitted && (
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={`flex items-center gap-2 rounded-xl px-3.5 py-2 border font-mono text-xs md:text-sm font-bold shadow-lg ${
+                      secondsRemaining < 60
+                        ? 'border-rose-500/60 bg-rose-500/15 text-rose-300 animate-pulse'
+                        : 'border-[#2563eb]/50 bg-[#081631] text-sky-300'
+                    }`}
+                  >
+                    <Clock className="h-4 w-4 text-[#38bdf8]" />
+                    <span>{formatTimer(secondsRemaining)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSubmitModal(true)}
+                    className="rounded-xl bg-gradient-to-r from-[#2563eb] to-[#1d4ed8] px-4 py-2 text-xs font-bold text-white hover:brightness-110 shadow-md transition-all cursor-pointer"
+                  >
+                    Submit Exam
+                  </button>
                 </div>
               )}
 
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-2xl bg-[#2563eb] py-4 text-sm font-bold text-white shadow-[0_0_25px_rgba(37,99,235,0.4)] hover:bg-[#1d4ed8] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                type="button"
+                onClick={() => setActiveTab('/reminders')}
+                className="relative flex h-10 w-10 items-center justify-center rounded-full border border-[#17305c] bg-[#07142b] text-slate-300 hover:border-[#38bdf8]/50 hover:text-white transition-colors cursor-pointer"
+                title="Study Reminders & Notifications"
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" /> Preparing Exam Questions...
-                  </>
-                ) : (
-                  <>
-                    Start Examination Now <ArrowRight className="h-5 w-5" />
-                  </>
-                )}
+                <Bell className="h-4 w-4" />
+                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-[#07142b]" />
               </button>
-            </form>
-          </div>
-        ) : testSubmitted && testResult ? (
-          /* 2. Professional Report Card & Results View */
-          <div className="space-y-6 animate-in fade-in">
-            {/* Scorecard Banner */}
-            <div className="rounded-3xl border border-blue-500/30 bg-[#0d1426] p-6 md:p-8 shadow-2xl text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400/20 text-amber-400 border border-amber-400/30 mb-3">
-                <Trophy className="h-8 w-8" />
-              </div>
-              <h2 className="text-2xl md:text-3xl font-extrabold text-white">
-                Official Examination Scorecard
-              </h2>
-              <p className="text-xs md:text-sm text-slate-400 mt-1">
-                Candidate: {profile.name} · {profile.classLevel} ({profile.primaryExam}) · {testResult.topic}
-              </p>
 
-              {/* Metrics Grid */}
-              <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-                <div className="rounded-2xl border border-white/10 bg-[#070b16] p-4">
-                  <div className="text-2xl md:text-3xl font-black text-blue-400">
-                    {testResult.score} / {testResult.maxScore}
-                  </div>
-                  <div className="text-xs text-slate-400 font-bold mt-1">Total Score</div>
+              <button
+                type="button"
+                onClick={() => setCustomizeOpen(true)}
+                className="flex items-center gap-3 rounded-full border border-[#17305c] bg-[#07142b]/90 pl-1.5 pr-3.5 py-1 hover:border-[#38bdf8]/50 transition-all cursor-pointer"
+                title="Customize Student Profile"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#4f46e5] to-[#2563eb] text-xs font-bold text-white shadow-md">
+                  {displayAvatarChar}
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-[#070b16] p-4">
-                  <div className="text-2xl md:text-3xl font-black text-emerald-400">
-                    {testResult.accuracy}%
-                  </div>
-                  <div className="text-xs text-slate-400 font-bold mt-1">Accuracy</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-[#070b16] p-4">
-                  <div className="text-2xl md:text-3xl font-black text-emerald-400">
-                    {testResult.correctCount}
-                  </div>
-                  <div className="text-xs text-slate-400 font-bold mt-1">Correct (+1)</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-[#070b16] p-4">
-                  <div className="text-2xl md:text-3xl font-black text-rose-400">
-                    {testResult.wrongCount}
-                  </div>
-                  <div className="text-xs text-slate-400 font-bold mt-1">
-                    Wrong ({testResult.negativeMarking ? '−0.25' : '0'})
+                <div className="text-left hidden sm:block">
+                  <div className="text-xs font-bold text-white leading-tight">{displayUserName}</div>
+                  <div className="text-[10px] text-slate-400 leading-tight">
+                    {profile.classLevel || 'Class 10'}
                   </div>
                 </div>
-              </div>
-
-              {/* Actions */}
-              <div className="mt-6 flex flex-wrap justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTestActive(false);
-                    setTestSubmitted(false);
-                  }}
-                  className="rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-blue-500 shadow-md"
-                >
-                  <RotateCcw className="h-4 w-4 inline mr-1.5" /> Start New Test
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('/tutor')}
-                  className="rounded-xl border border-white/10 bg-[#12182b] px-5 py-2.5 text-xs font-bold text-slate-200 hover:text-white hover:border-blue-500/50"
-                >
-                  Ask AI Tutor to Explain Mistakes →
-                </button>
-                {testResult.wrongCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('/mistakes')}
-                    className="rounded-xl border border-rose-500/40 bg-rose-500/15 px-5 py-2.5 text-xs font-bold text-rose-300 hover:bg-rose-500/25 transition-all shadow-md flex items-center gap-1.5"
-                  >
-                    <span>📕 Open Mistake Book ({testResult.wrongCount})</span>
-                  </button>
-                )}
-              </div>
+                <ChevronDown className="h-3.5 w-3.5 text-slate-400 hidden sm:block" />
+              </button>
             </div>
+          </div>
 
-            {/* Detailed Question Review */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <FileText className="h-5 w-5 text-blue-400" />
-                <span>Question-by-Question Detailed Analysis ({questions.length})</span>
-              </h3>
-
-              {questions.map((q, idx) => {
-                const userAns = userAnswers[idx];
-                const isCorrect = userAns !== null && Number(userAns) === Number(q.answer);
-                const isSkipped = userAns === null || userAns === undefined;
-
-                return (
+          {/* ==================== 1. MOCK TEST DASHBOARD SETUP VIEW ==================== */}
+          {!testActive ? (
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6 items-start">
+              {/* LEFT COLUMN: CREATE MOCK TEST STEPS 1–5 */}
+              <div className="space-y-4">
+                {/* HERO BANNER: Create Mock Test */}
+                <div className="relative overflow-hidden rounded-2xl border border-[#1b3970] bg-gradient-to-r from-[#07152e] via-[#0a1e42] to-[#081938] px-6 py-5 shadow-[0_12px_35px_rgba(0,0,0,0.45)]">
                   <div
-                    key={q.id}
-                    className="rounded-2xl border border-white/10 bg-[#0d1222] p-5 space-y-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-2.5">
-                        {isCorrect ? (
-                          <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
-                        ) : isSkipped ? (
-                          <div className="h-5 w-5 rounded-full border border-slate-500 text-slate-400 flex items-center justify-center text-xs shrink-0 mt-0.5">
-                            —
+                    className="pointer-events-none absolute inset-0 opacity-60"
+                    style={{
+                      background:
+                        'radial-gradient(circle at 80% 50%, rgba(56, 189, 248, 0.16) 0%, transparent 60%)',
+                    }}
+                  />
+                  <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      {/* Glowing Clipboard Icon */}
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[#60a5fa]/40 bg-gradient-to-b from-[#2563eb] to-[#1d4ed8] shadow-[0_0_28px_rgba(37,99,235,0.6)]">
+                        <svg
+                          viewBox="0 0 48 48"
+                          className="h-10 w-10 text-white"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <rect
+                            x="10"
+                            y="8"
+                            width="28"
+                            height="34"
+                            rx="5"
+                            fill="white"
+                            fillOpacity="0.15"
+                            stroke="white"
+                            strokeWidth="2.75"
+                          />
+                          <rect x="17" y="4" width="14" height="7" rx="3" fill="white" />
+                          <path
+                            d="M16 20L19 23L24 17"
+                            stroke="white"
+                            strokeWidth="2.75"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M27 20H33"
+                            stroke="white"
+                            strokeWidth="2.75"
+                            strokeLinecap="round"
+                          />
+                          <path
+                            d="M16 30L19 33L24 27"
+                            stroke="white"
+                            strokeWidth="2.75"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M27 30H33"
+                            stroke="white"
+                            strokeWidth="2.75"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </div>
+
+                      <div>
+                        <h1 className="text-xl md:text-[26px] font-bold tracking-tight text-white">
+                          Create Mock Test
+                        </h1>
+                        <p className="mt-1 text-xs md:text-sm text-slate-300/90">
+                          Customize your test and start practicing. Improve your accuracy and speed!
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Right Mascot & "Better Practice Better Results!" Callout */}
+                    <div className="hidden md:flex items-center gap-3 pr-2">
+                      <div className="text-right -rotate-6 select-none">
+                        <div className="text-xs font-semibold italic text-sky-200 leading-tight">
+                          Better Practice
+                        </div>
+                        <div className="text-xs font-bold italic text-white leading-tight">
+                          Better Results!
+                        </div>
+                        <svg
+                          className="ml-auto mt-1 h-4 w-12 text-[#38bdf8]"
+                          viewBox="0 0 50 18"
+                          fill="none"
+                        >
+                          <path
+                            d="M2 12C16 16 32 14 45 5M45 5L38 4M45 5L42 12"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
+
+                      {/* Cute 3D StudyBot AI Mascot SVG */}
+                      <div className="relative h-20 w-20 shrink-0 drop-shadow-[0_6px_16px_rgba(14,165,233,0.45)]">
+                        <svg viewBox="0 0 100 100" className="h-full w-full">
+                          <defs>
+                            <linearGradient id="botBodyGrad" x1="0" y1="0" x2="1" y2="1">
+                              <stop offset="0%" stopColor="#eff6ff" />
+                              <stop offset="55%" stopColor="#bfdbfe" />
+                              <stop offset="100%" stopColor="#60a5fa" />
+                            </linearGradient>
+                            <linearGradient id="botVisorGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#0f172a" />
+                              <stop offset="100%" stopColor="#1e3a8a" />
+                            </linearGradient>
+                          </defs>
+                          {/* Antenna */}
+                          <line
+                            x1="50"
+                            y1="10"
+                            x2="50"
+                            y2="22"
+                            stroke="#60a5fa"
+                            strokeWidth="4"
+                            strokeLinecap="round"
+                          />
+                          <circle cx="50" cy="9" r="5" fill="#38bdf8" />
+                          {/* Ears */}
+                          <rect x="14" y="38" width="8" height="16" rx="4" fill="#2563eb" />
+                          <rect x="78" y="38" width="8" height="16" rx="4" fill="#2563eb" />
+                          {/* Head */}
+                          <rect
+                            x="20"
+                            y="22"
+                            width="60"
+                            height="46"
+                            rx="22"
+                            fill="url(#botBodyGrad)"
+                            stroke="#3b82f6"
+                            strokeWidth="2"
+                          />
+                          {/* Visor */}
+                          <rect
+                            x="27"
+                            y="30"
+                            width="46"
+                            height="28"
+                            rx="13"
+                            fill="url(#botVisorGrad)"
+                          />
+                          {/* Happy Eyes */}
+                          <path
+                            d="M36 43C37.5 39.5 41.5 39.5 43 43"
+                            stroke="#38bdf8"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            fill="none"
+                          />
+                          <path
+                            d="M57 43C58.5 39.5 62.5 39.5 64 43"
+                            stroke="#38bdf8"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            fill="none"
+                          />
+                          {/* Smile */}
+                          <path
+                            d="M44 50Q50 55 56 50"
+                            stroke="#38bdf8"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            fill="none"
+                          />
+                          {/* Body */}
+                          <rect
+                            x="31"
+                            y="70"
+                            width="38"
+                            height="24"
+                            rx="11"
+                            fill="url(#botBodyGrad)"
+                            stroke="#3b82f6"
+                            strokeWidth="2"
+                          />
+                          <rect x="40" y="76" width="20" height="10" rx="4" fill="#2563eb" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* STEP 1: SELECT SUBJECT */}
+                <div className="rounded-2xl border border-[#162d59] bg-[#061126]/95 p-5 shadow-lg">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-xs font-bold text-white shadow-[0_0_12px_rgba(37,99,235,0.6)]">
+                      1
+                    </div>
+                    <div>
+                      <h2 className="text-sm md:text-base font-bold text-white leading-tight">
+                        Select Subject
+                      </h2>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Choose the subject for your mock test
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                    {(
+                      [
+                        {
+                          name: 'Mathematics' as SubjectOption,
+                          icon: Calculator,
+                          iconBg: 'bg-[#2563eb]',
+                        },
+                        {
+                          name: 'Science' as SubjectOption,
+                          icon: FlaskConical,
+                          iconBg: 'bg-[#173668]',
+                        },
+                        {
+                          name: 'English' as SubjectOption,
+                          icon: BookOpen,
+                          iconBg: 'bg-[#5b21b6]',
+                        },
+                        {
+                          name: 'Social Science' as SubjectOption,
+                          icon: Globe,
+                          iconBg: 'bg-[#1e3a8a]',
+                        },
+                        {
+                          name: 'Hindi' as SubjectOption,
+                          icon: Languages,
+                          iconBg: 'bg-[#3730a3]',
+                        },
+                      ] as const
+                    ).map((item) => {
+                      const IconComponent = item.icon;
+                      const isSelected = subject === item.name;
+                      return (
+                        <button
+                          key={item.name}
+                          type="button"
+                          onClick={() => handleSelectSubject(item.name)}
+                          className={`relative flex items-center gap-3 rounded-xl border px-3.5 py-3.5 text-left transition-all cursor-pointer ${
+                            isSelected
+                              ? 'border-[#38bdf8] bg-gradient-to-r from-[#0d2857] to-[#163d7a] text-white shadow-[0_0_20px_rgba(37,99,235,0.4)]'
+                              : 'border-[#18315e] bg-[#081630]/85 text-slate-200 hover:border-[#2563eb]/60 hover:bg-[#0b1d3d]'
+                          }`}
+                        >
+                          {isSelected && (
+                            <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#38bdf8] text-[#030916] shadow-md">
+                              <Check className="h-3 w-3 stroke-[3]" />
+                            </span>
+                          )}
+                          <div
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                              isSelected ? 'bg-[#2563eb]' : item.iconBg
+                            } text-white shadow-inner`}
+                          >
+                            <IconComponent className="h-4 w-4" />
                           </div>
-                        ) : (
-                          <XCircle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
-                        )}
-                        <div>
-                          <span className="text-[0.68rem] font-bold text-blue-400 uppercase tracking-wider block">
-                            Question {idx + 1}
+                          <span className="text-xs md:text-[13px] font-semibold truncate">
+                            {item.name}
                           </span>
-                          <h4 className="font-semibold text-white text-sm md:text-base leading-snug">
-                            {q.question}
-                          </h4>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* STEP 2: SELECT TOPIC (DROPDOWN + TYPE ANY TOPIC + VIEW ALL CHAPTERS) */}
+                <div className="rounded-2xl border border-[#162d59] bg-[#061126]/95 p-5 shadow-lg">
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-xs font-bold text-white shadow-[0_0_12px_rgba(37,99,235,0.6)]">
+                        2
+                      </div>
+                      <div>
+                        <h2 className="text-sm md:text-base font-bold text-white leading-tight">
+                          Select Topic
+                        </h2>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Choose a specific chapter or type any custom topic you want to practice
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
+                    {/* Interactive Combobox: Student can type ANY topic OR open chapter dropdown */}
+                    <div ref={topicDropdownRef} className="relative flex-1">
+                      <div className="flex items-center rounded-xl border border-[#1b3668] bg-[#040d1e] focus-within:border-[#38bdf8] transition-colors">
+                        <input
+                          type="text"
+                          value={topic}
+                          onChange={(e) => setTopic(e.target.value)}
+                          onFocus={() => setTopicDropdownOpen(true)}
+                          placeholder="Type any topic (e.g., Quadratic Equations, Photosynthesis, Tenses...)"
+                          className="w-full bg-transparent px-4 py-3 text-xs md:text-sm font-medium text-white placeholder:text-slate-500 focus:outline-none"
+                        />
+                        {topic && (
+                          <button
+                            type="button"
+                            onClick={() => setTopic('')}
+                            className="px-1.5 text-slate-500 hover:text-slate-300 cursor-pointer"
+                            title="Clear topic to type a custom topic"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setTopicDropdownOpen((prev) => !prev)}
+                          className="px-3.5 py-3 text-slate-300 hover:text-white cursor-pointer"
+                          title="Choose from syllabus chapters"
+                        >
+                          <ChevronDown
+                            className={`h-4 w-4 transition-transform ${
+                              topicDropdownOpen ? 'rotate-180 text-[#38bdf8]' : ''
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Dropdown Menu */}
+                      {topicDropdownOpen && (
+                        <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-64 overflow-y-auto rounded-xl border border-[#1e3d75] bg-[#07142b] p-1.5 shadow-2xl">
+                          <div className="px-3 py-1.5 text-[11px] font-semibold text-sky-400 flex items-center justify-between border-b border-white/5 mb-1">
+                            <span>{subject} Chapters — or type any custom topic above</span>
+                            <Sparkles className="h-3 w-3" />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTopic(`Full ${subject} Syllabus`);
+                              setTopicDropdownOpen(false);
+                            }}
+                            className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold text-sky-300 hover:bg-[#112852] transition-colors cursor-pointer"
+                          >
+                            <span>✨ Full {subject} Syllabus (Mixed Mock Test)</span>
+                            {topic === `Full ${subject} Syllabus` && (
+                              <Check className="h-3.5 w-3.5 text-[#38bdf8]" />
+                            )}
+                          </button>
+                          {currentSubjectTopics.map((chap) => (
+                            <button
+                              key={chap}
+                              type="button"
+                              onClick={() => {
+                                setTopic(chap);
+                                setTopicDropdownOpen(false);
+                              }}
+                              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors cursor-pointer ${
+                                topic === chap
+                                  ? 'bg-[#153268] text-white font-semibold'
+                                  : 'text-slate-200 hover:bg-white/[0.06]'
+                              }`}
+                            >
+                              <span>{chap}</span>
+                              {topic === chap && <Check className="h-3.5 w-3.5 text-[#38bdf8]" />}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomTopicModalInput(topic);
+                        setAllChaptersModalOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs md:text-sm font-semibold text-[#38bdf8] hover:text-sky-300 whitespace-nowrap transition-colors cursor-pointer self-start sm:self-center"
+                    >
+                      <span>View All Chapters</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* STEP 3: SELECT DIFFICULTY LEVEL */}
+                <div className="rounded-2xl border border-[#162d59] bg-[#061126]/95 p-5 shadow-lg">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-xs font-bold text-white shadow-[0_0_12px_rgba(37,99,235,0.6)]">
+                      3
+                    </div>
+                    <div>
+                      <h2 className="text-sm md:text-base font-bold text-white leading-tight">
+                        Select Difficulty Level
+                      </h2>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Choose the difficulty level of your test
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    {/* Easy */}
+                    <button
+                      type="button"
+                      onClick={() => setDifficulty('Easy')}
+                      className={`relative flex items-center gap-3.5 rounded-xl border p-4 text-left transition-all cursor-pointer ${
+                        difficulty === 'Easy'
+                          ? 'border-emerald-400 bg-gradient-to-r from-[#062c2b] to-[#0a3f3c] shadow-[0_0_20px_rgba(16,185,129,0.3)]'
+                          : 'border-[#123d3d] bg-[#072227]/80 hover:border-emerald-500/50'
+                      }`}
+                    >
+                      {difficulty === 'Easy' && (
+                        <span className="absolute top-2.5 right-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400 text-[#030916]">
+                          <Check className="h-3 w-3 stroke-[3]" />
+                        </span>
+                      )}
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#10b981] text-white shadow-md">
+                        <FlaskConical className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-white">Easy</div>
+                        <div className="text-xs text-slate-300/80">Build basics</div>
+                      </div>
+                    </button>
+
+                    {/* Medium */}
+                    <button
+                      type="button"
+                      onClick={() => setDifficulty('Medium')}
+                      className={`relative flex items-center gap-3.5 rounded-xl border p-4 text-left transition-all cursor-pointer ${
+                        difficulty === 'Medium'
+                          ? 'border-[#38bdf8] bg-gradient-to-r from-[#0d2857] to-[#153e82] shadow-[0_0_22px_rgba(37,99,235,0.45)]'
+                          : 'border-[#183363] bg-[#091936]/80 hover:border-[#38bdf8]/50'
+                      }`}
+                    >
+                      {difficulty === 'Medium' && (
+                        <span className="absolute top-2.5 right-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#38bdf8] text-[#030916]">
+                          <Check className="h-3 w-3 stroke-[3]" />
+                        </span>
+                      )}
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-white shadow-md">
+                        <BookOpen className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-white">Medium</div>
+                        <div className="text-xs text-slate-200/90">Test your skills</div>
+                      </div>
+                    </button>
+
+                    {/* Hard */}
+                    <button
+                      type="button"
+                      onClick={() => setDifficulty('Hard')}
+                      className={`relative flex items-center gap-3.5 rounded-xl border p-4 text-left transition-all cursor-pointer ${
+                        difficulty === 'Hard'
+                          ? 'border-purple-400 bg-gradient-to-r from-[#24124d] to-[#351a70] shadow-[0_0_20px_rgba(147,51,234,0.35)]'
+                          : 'border-[#351d66] bg-[#160e33]/85 hover:border-purple-400/50'
+                      }`}
+                    >
+                      {difficulty === 'Hard' && (
+                        <span className="absolute top-2.5 right-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-purple-400 text-[#030916]">
+                          <Check className="h-3 w-3 stroke-[3]" />
+                        </span>
+                      )}
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#7c3aed] text-white shadow-md">
+                        <Sparkles className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-white">Hard</div>
+                        <div className="text-xs text-slate-300/80">Challenge yourself</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* STEP 4 & STEP 5 SIDE-BY-SIDE */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* STEP 4: NUMBER OF QUESTIONS */}
+                  <div className="rounded-2xl border border-[#162d59] bg-[#061126]/95 p-5 shadow-lg flex flex-col justify-between">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-xs font-bold text-white shadow-[0_0_12px_rgba(37,99,235,0.6)]">
+                        4
+                      </div>
+                      <div>
+                        <h2 className="text-sm md:text-base font-bold text-white leading-tight">
+                          Number of Questions
+                        </h2>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Set the number of questions (Max 60)
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-xl border border-[#1b3668] bg-[#040d1e] overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => handleAdjustQuestions(-5)}
+                        disabled={questionCount <= 1}
+                        className="flex h-12 w-14 items-center justify-center border-r border-[#1b3668] text-slate-300 hover:bg-white/5 hover:text-white disabled:opacity-40 transition-colors cursor-pointer"
+                        title="Decrease questions"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+
+                      <input
+                        type="number"
+                        min={1}
+                        max={60}
+                        value={questionCount}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (!isNaN(val)) {
+                            setQuestionCount(Math.min(60, Math.max(1, val)));
+                          }
+                        }}
+                        className="w-full bg-transparent text-center text-base md:text-lg font-bold text-white focus:outline-none"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => handleAdjustQuestions(5)}
+                        disabled={questionCount >= 60}
+                        className="flex h-12 w-14 items-center justify-center border-l border-[#1b3668] text-slate-300 hover:bg-white/5 hover:text-white disabled:opacity-40 transition-colors cursor-pointer"
+                        title="Increase questions"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* STEP 5: NEGATIVE MARKING */}
+                  <div className="rounded-2xl border border-[#162d59] bg-[#061126]/95 p-5 shadow-lg flex flex-col justify-between">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-xs font-bold text-white shadow-[0_0_12px_rgba(37,99,235,0.6)]">
+                          5
+                        </div>
+                        <div>
+                          <h2 className="text-sm md:text-base font-bold text-white leading-tight">
+                            Negative Marking
+                          </h2>
+                          <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                            <span>Enable negative marking for wrong answers</span>
+                            <Info className="h-3.5 w-3.5 text-slate-400 inline shrink-0" />
+                          </p>
                         </div>
                       </div>
 
-                      <span
-                        className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                          isCorrect
-                            ? 'bg-emerald-500/20 text-emerald-300'
-                            : isSkipped
-                            ? 'bg-slate-800 text-slate-400'
-                            : 'bg-rose-500/20 text-rose-300'
+                      <button
+                        type="button"
+                        onClick={() => setNegativeMarking((prev) => !prev)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${
+                          negativeMarking ? 'bg-[#2563eb]' : 'bg-slate-700'
                         }`}
+                        aria-label="Toggle Negative Marking"
                       >
-                        {isCorrect ? '+1.00' : isSkipped ? '0.00' : testResult.negativeMarking ? '−0.25' : '0.00'}
-                      </span>
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            negativeMarking ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                      {q.options.map((opt, optIdx) => {
-                        const isChosen = userAns !== null && Number(userAns) === optIdx;
-                        const isActualCorrect = Number(q.answer) === optIdx;
+                    <div className="mt-4 pt-3 border-t border-[#142952]">
+                      {editingScheme ? (
+                        <div className="flex items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center gap-2">
+                            <label className="text-slate-300">
+                              +Correct:
+                              <input
+                                type="number"
+                                min={1}
+                                max={10}
+                                value={correctMarks}
+                                onChange={(e) =>
+                                  setCorrectMarks(Math.max(1, Number(e.target.value) || 4))
+                                }
+                                className="ml-1 w-12 rounded border border-[#2563eb] bg-[#040d1e] px-1.5 py-0.5 text-center text-white"
+                              />
+                            </label>
+                            <label className="text-slate-300">
+                              -Wrong:
+                              <input
+                                type="number"
+                                min={0}
+                                max={5}
+                                step="0.25"
+                                value={wrongPenalty}
+                                onChange={(e) =>
+                                  setWrongPenalty(Math.max(0, Number(e.target.value) || 1))
+                                }
+                                className="ml-1 w-14 rounded border border-[#2563eb] bg-[#040d1e] px-1.5 py-0.5 text-center text-white"
+                              />
+                            </label>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setEditingScheme(false)}
+                            className="rounded-lg bg-[#2563eb] px-2.5 py-1 text-[11px] font-bold text-white cursor-pointer"
+                          >
+                            Done
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-end justify-between">
+                          <div>
+                            <div className="text-xs font-semibold text-slate-300 underline decoration-slate-600 underline-offset-4">
+                              Marking Scheme
+                            </div>
+                            <div className="mt-1.5 flex items-center gap-3 text-xs text-slate-300">
+                              <span>
+                                <strong className="text-white">+{correctMarks}</strong> for correct
+                              </span>
+                              <span className="text-slate-600">|</span>
+                              <span>
+                                <strong className="text-white">
+                                  {negativeMarking ? `-${wrongPenalty}` : '0'}
+                                </strong>{' '}
+                                for wrong
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setEditingScheme(true)}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-[#38bdf8] hover:text-sky-300 transition-colors cursor-pointer"
+                          >
+                            <span>Edit</span>
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
+                    {error}
+                  </div>
+                )}
+
+                {/* PRIMARY START MOCK TEST BUTTON */}
+                <button
+                  type="button"
+                  onClick={() => handleStartTest()}
+                  disabled={loading}
+                  className="w-full rounded-2xl bg-gradient-to-r from-[#1d63f2] via-[#2563eb] to-[#1d63f2] py-4 text-sm md:text-base font-bold text-white shadow-[0_8px_28px_rgba(37,99,235,0.5)] hover:brightness-110 transition-all disabled:opacity-60 flex items-center justify-center gap-2.5 cursor-pointer"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Generating {questionCount} Questions on "{topic}"...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 fill-current" />
+                      <span>Start Mock Test</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* RIGHT COLUMN: TEST OVERVIEW, WHY TAKE MOCK TESTS, QUOTE CARD */}
+              <div className="space-y-4">
+                {/* 1. TEST OVERVIEW CARD */}
+                <div className="rounded-2xl border border-[#162d59] bg-[#061126]/95 p-5 shadow-lg space-y-4">
+                  <div className="flex items-center gap-2.5 border-b border-[#142952] pb-3.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0e2a5c] text-[#38bdf8]">
+                      <FlaskConical className="h-4 w-4" />
+                    </div>
+                    <h3 className="text-base font-bold text-white">Test Overview</h3>
+                  </div>
+
+                  <div className="space-y-3.5">
+                    {/* Subject */}
+                    <div className="flex items-center gap-3.5">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-indigo-500/30 bg-[#191c47] text-indigo-300">
+                        <BookOpen className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs text-slate-400">Subject</div>
+                        <div className="text-sm font-bold text-white truncate">{subject}</div>
+                      </div>
+                    </div>
+
+                    {/* Topic */}
+                    <div className="flex items-center gap-3.5">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-500/30 bg-[#0d2752] text-[#38bdf8]">
+                        <ListChecks className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs text-slate-400">Topic</div>
+                        <div className="text-sm font-bold text-white truncate">
+                          {topic.trim() || 'All Topics'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Difficulty */}
+                    <div className="flex items-center gap-3.5">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-[#332417] text-amber-400">
+                        <BarChart3 className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs text-slate-400">Difficulty</div>
+                        <div className="text-sm font-bold text-white">{difficulty}</div>
+                      </div>
+                    </div>
+
+                    {/* Total Questions */}
+                    <div className="flex items-center gap-3.5">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-teal-500/30 bg-[#0c3138] text-teal-300">
+                        <HelpCircle className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs text-slate-400">Total Questions</div>
+                        <div className="text-sm font-bold text-white">
+                          {questionCount}{' '}
+                          <span className="font-normal text-slate-400">(Max 60)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Negative Marking */}
+                    <div className="flex items-center gap-3.5">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-pink-500/30 bg-[#381534] text-pink-400">
+                        <MinusCircle className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs text-slate-400">Negative Marking</div>
+                        <div className="text-sm font-bold text-white">
+                          {negativeMarking ? `Enabled (-${wrongPenalty})` : 'Disabled (0)'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. WHY TAKE MOCK TESTS CARD */}
+                <div className="rounded-2xl border border-[#162d59] bg-[#061126]/95 p-5 shadow-lg space-y-3.5">
+                  <div className="flex items-center gap-2.5 border-b border-[#142952] pb-3">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0c3138] text-teal-300">
+                      <FlaskConical className="h-4 w-4" />
+                    </div>
+                    <h3 className="text-sm md:text-base font-bold text-white">
+                      Why Take Mock Tests?
+                    </h3>
+                  </div>
+
+                  <ul className="space-y-3">
+                    {[
+                      'Understand your strengths & weaknesses',
+                      'Improve speed and accuracy',
+                      'Build exam confidence',
+                      'Get personalized performance analysis',
+                    ].map((benefit) => (
+                      <li key={benefit} className="flex items-center gap-3 text-xs text-slate-200">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-teal-400/40 bg-teal-500/15 text-teal-300">
+                          <Check className="h-3 w-3 stroke-[2.5]" />
+                        </span>
+                        <span>{benefit}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* 3. MOTIVATIONAL QUOTE & MASCOT CARD */}
+                <div className="relative overflow-hidden rounded-2xl border border-[#162d59] bg-gradient-to-br from-[#061229] via-[#081938] to-[#0a234f] p-5 shadow-lg min-h-[168px] flex flex-col justify-between">
+                  <div>
+                    <div className="text-3xl font-serif font-black text-[#38bdf8] leading-none">
+                      “
+                    </div>
+                    <p className="mt-1 max-w-[200px] text-sm md:text-[15px] font-semibold text-white leading-snug">
+                      “Small steps in practice lead to big results.”
+                    </p>
+                  </div>
+
+                  {/* Sprout & Robot Illustration in Bottom Right */}
+                  <div className="pointer-events-none absolute bottom-1 right-2 flex items-end gap-1">
+                    {/* Green Sprout */}
+                    <svg viewBox="0 0 36 42" className="h-9 w-8">
+                      <path
+                        d="M18 40V20"
+                        stroke="#10b981"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M18 28C10 28 6 21 8 15C15 15 18 21 18 28Z"
+                        fill="#10b981"
+                      />
+                      <path
+                        d="M18 22C26 22 30 15 28 9C21 9 18 15 18 22Z"
+                        fill="#34d399"
+                      />
+                    </svg>
+
+                    {/* Cute 3D StudyBot Mascot */}
+                    <svg viewBox="0 0 100 100" className="h-24 w-24 drop-shadow-[0_6px_15px_rgba(37,99,235,0.45)]">
+                      <line
+                        x1="50"
+                        y1="10"
+                        x2="50"
+                        y2="22"
+                        stroke="#60a5fa"
+                        strokeWidth="4"
+                        strokeLinecap="round"
+                      />
+                      <circle cx="50" cy="9" r="5" fill="#38bdf8" />
+                      <rect x="14" y="38" width="8" height="16" rx="4" fill="#2563eb" />
+                      <rect x="78" y="38" width="8" height="16" rx="4" fill="#2563eb" />
+                      <rect
+                        x="20"
+                        y="22"
+                        width="60"
+                        height="46"
+                        rx="22"
+                        fill="#e0f2fe"
+                        stroke="#3b82f6"
+                        strokeWidth="2"
+                      />
+                      <rect x="27" y="30" width="46" height="28" rx="13" fill="#0f172a" />
+                      <path
+                        d="M36 43C37.5 39.5 41.5 39.5 43 43"
+                        stroke="#38bdf8"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        fill="none"
+                      />
+                      <path
+                        d="M57 43C58.5 39.5 62.5 39.5 64 43"
+                        stroke="#38bdf8"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        fill="none"
+                      />
+                      <path
+                        d="M44 50Q50 55 56 50"
+                        stroke="#38bdf8"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        fill="none"
+                      />
+                      <rect
+                        x="31"
+                        y="70"
+                        width="38"
+                        height="24"
+                        rx="11"
+                        fill="#dbeafe"
+                        stroke="#3b82f6"
+                        strokeWidth="2"
+                      />
+                      <rect x="40" y="76" width="20" height="10" rx="4" fill="#2563eb" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : testSubmitted && testResult ? (
+            /* ==================== 2. SCORECARD & DETAILED SOLUTIONS VIEW ==================== */
+            <div className="space-y-6 animate-in fade-in">
+              <div className="rounded-3xl border border-[#1e3d75] bg-[#07142b] p-6 md:p-8 shadow-2xl text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400/20 text-amber-400 border border-amber-400/30 mb-3">
+                  <Trophy className="h-8 w-8" />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-extrabold text-white">
+                  Mock Test Scorecard
+                </h2>
+                <p className="text-xs md:text-sm text-slate-400 mt-1">
+                  {displayUserName} · {subject} ({testResult.topic}) · {testResult.difficulty}
+                </p>
+
+                <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                  <div className="rounded-2xl border border-[#1b3668] bg-[#040d1e] p-4">
+                    <div className="text-2xl md:text-3xl font-black text-[#38bdf8]">
+                      {testResult.score} / {testResult.maxScore}
+                    </div>
+                    <div className="text-xs text-slate-400 font-bold mt-1">Total Score</div>
+                  </div>
+                  <div className="rounded-2xl border border-[#1b3668] bg-[#040d1e] p-4">
+                    <div className="text-2xl md:text-3xl font-black text-emerald-400">
+                      {testResult.accuracy}%
+                    </div>
+                    <div className="text-xs text-slate-400 font-bold mt-1">Accuracy</div>
+                  </div>
+                  <div className="rounded-2xl border border-[#1b3668] bg-[#040d1e] p-4">
+                    <div className="text-2xl md:text-3xl font-black text-emerald-400">
+                      {testResult.correctCount}
+                    </div>
+                    <div className="text-xs text-slate-400 font-bold mt-1">
+                      Correct (+{correctMarks})
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-[#1b3668] bg-[#040d1e] p-4">
+                    <div className="text-2xl md:text-3xl font-black text-rose-400">
+                      {testResult.wrongCount}
+                    </div>
+                    <div className="text-xs text-slate-400 font-bold mt-1">
+                      Wrong ({testResult.negativeMarking ? `−${wrongPenalty}` : '0'})
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTestActive(false);
+                      setTestSubmitted(false);
+                    }}
+                    className="rounded-xl bg-[#2563eb] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#1d4ed8] shadow-md cursor-pointer"
+                  >
+                    <RotateCcw className="h-4 w-4 inline mr-1.5" /> Create Another Mock Test
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('/tutor')}
+                    className="rounded-xl border border-[#1b3668] bg-[#0a1936] px-5 py-2.5 text-xs font-bold text-slate-200 hover:text-white hover:border-[#38bdf8] cursor-pointer"
+                  >
+                    Ask AI Tutor to Explain Mistakes →
+                  </button>
+                  {testResult.wrongCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('/mistakes')}
+                      className="rounded-xl border border-rose-500/40 bg-rose-500/15 px-5 py-2.5 text-xs font-bold text-rose-300 hover:bg-rose-500/25 transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>📕 Open Mistake Book ({testResult.wrongCount})</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Detailed Question-by-Question Review */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-[#38bdf8]" />
+                  <span>Question-by-Question Solutions ({questions.length})</span>
+                </h3>
+
+                {questions.map((q, idx) => {
+                  const userAns = userAnswers[idx];
+                  const isCorrect = userAns !== null && Number(userAns) === Number(q.answer);
+                  const isSkipped = userAns === null || userAns === undefined;
+
+                  return (
+                    <div
+                      key={q.id}
+                      className="rounded-2xl border border-[#162d59] bg-[#061126] p-5 space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          {isCorrect ? (
+                            <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+                          ) : isSkipped ? (
+                            <div className="h-5 w-5 rounded-full border border-slate-500 text-slate-400 flex items-center justify-center text-xs shrink-0 mt-0.5">
+                              —
+                            </div>
+                          ) : (
+                            <XCircle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
+                          )}
+                          <div>
+                            <span className="text-[0.68rem] font-bold text-[#38bdf8] uppercase tracking-wider block">
+                              Question {idx + 1}
+                            </span>
+                            <h4 className="font-semibold text-white text-sm md:text-base leading-snug">
+                              {q.question}
+                            </h4>
+                          </div>
+                        </div>
+
+                        <span
+                          className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${
+                            isCorrect
+                              ? 'bg-emerald-500/20 text-emerald-300'
+                              : isSkipped
+                              ? 'bg-slate-800 text-slate-400'
+                              : 'bg-rose-500/20 text-rose-300'
+                          }`}
+                        >
+                          {isCorrect
+                            ? `+${correctMarks}`
+                            : isSkipped
+                            ? '0'
+                            : testResult.negativeMarking
+                            ? `−${wrongPenalty}`
+                            : '0'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        {q.options.map((opt, optIdx) => {
+                          const isChosen = userAns !== null && Number(userAns) === optIdx;
+                          const isActualCorrect = Number(q.answer) === optIdx;
+                          return (
+                            <div
+                              key={optIdx}
+                              className={`p-2.5 rounded-xl border text-xs flex items-center gap-2.5 ${
+                                isActualCorrect
+                                  ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-200 font-semibold'
+                                  : isChosen && !isCorrect
+                                  ? 'border-rose-500/60 bg-rose-500/15 text-rose-200'
+                                  : 'border-[#162d59] bg-[#040d1e] text-slate-400'
+                              }`}
+                            >
+                              <span className="font-bold">{'ABCD'[optIdx]}.</span>
+                              <span className="flex-1">{opt}</span>
+                              {isActualCorrect && (
+                                <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                              )}
+                              {isChosen && !isCorrect && (
+                                <XCircle className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="rounded-xl border border-[#162d59] bg-[#040d1e] p-3 text-xs text-slate-300">
+                        <strong className="text-[#38bdf8]">Explanation: </strong>
+                        {q.explanation}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            /* ==================== 3. LIVE MOCK TEST ARENA ==================== */
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-5">
+                {currQ && (
+                  <div className="rounded-3xl border border-[#162d59] bg-[#061126] p-6 shadow-2xl space-y-6">
+                    <div className="flex items-center justify-between border-b border-[#142952] pb-4">
+                      <div className="flex items-center gap-2.5">
+                        <span className="rounded-lg bg-[#2563eb]/30 border border-[#38bdf8]/40 px-3 py-1 text-xs font-bold text-sky-300">
+                          Question {currentQuestionIndex + 1} of {questions.length}
+                        </span>
+                        <span className="text-xs text-slate-400 truncate max-w-[240px]">
+                          {subject} · {topic}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-emerald-400 font-bold">+{correctMarks}</span>
+                        <span className="text-slate-500">|</span>
+                        <span className="text-rose-400 font-bold">
+                          {negativeMarking ? `−${wrongPenalty}` : '0'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h2 className="text-base md:text-lg font-bold text-white leading-relaxed">
+                        {currQ.question}
+                      </h2>
+                    </div>
+
+                    <div className="grid gap-3">
+                      {currQ.options.map((opt, optIdx) => {
+                        const isSelected = userAnswers[currentQuestionIndex] === optIdx;
                         return (
-                          <div
+                          <button
                             key={optIdx}
-                            className={`p-2.5 rounded-xl border text-xs flex items-center gap-2.5 ${
-                              isActualCorrect
-                                ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-200 font-semibold'
-                                : isChosen && !isCorrect
-                                ? 'border-rose-500/60 bg-rose-500/15 text-rose-200'
-                                : 'border-white/5 bg-[#080c18] text-slate-400'
+                            type="button"
+                            onClick={() => handleSelectAnswer(optIdx)}
+                            className={`flex items-center p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                              isSelected
+                                ? 'border-[#38bdf8] bg-gradient-to-r from-[#0d2857] to-[#153e82] text-white shadow-lg'
+                                : 'border-[#162d59] bg-[#040d1e] text-slate-300 hover:border-[#2563eb]/60 hover:bg-[#081733]'
                             }`}
                           >
-                            <span className="font-bold">{'ABCD'[optIdx]}.</span>
-                            <span className="flex-1">{opt}</span>
-                            {isActualCorrect && <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />}
-                            {isChosen && !isCorrect && <XCircle className="h-3.5 w-3.5 text-rose-400 shrink-0" />}
-                          </div>
+                            <span
+                              className={`mr-3.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
+                                isSelected
+                                  ? 'bg-[#2563eb] text-white shadow-md'
+                                  : 'border border-[#1b3668] bg-[#0a1936] text-slate-400'
+                              }`}
+                            >
+                              {'ABCD'[optIdx]}
+                            </span>
+                            <span className="text-xs md:text-sm font-medium">{opt}</span>
+                          </button>
                         );
                       })}
                     </div>
 
-                    <div className="rounded-xl border border-white/5 bg-[#080c18] p-3 text-xs text-slate-300">
-                      <strong className="text-blue-400">Explanation & Marking Concept: </strong>
-                      {q.explanation}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          /* 3. Professional Live Exam Arena */
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left 2 Cols: Question Paper Area */}
-            <div className="lg:col-span-2 space-y-5">
-              {currQ && (
-                <div className="rounded-3xl border border-white/10 bg-[#0d1222] p-6 shadow-2xl space-y-6">
-                  {/* Top Question Status bar */}
-                  <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-lg bg-blue-600/30 border border-blue-500/40 px-2.5 py-1 text-xs font-bold text-blue-300">
-                        Q.{currentQuestionIndex + 1}
-                      </span>
-                      <span className="text-xs text-slate-400">Single Choice Question</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-emerald-400 font-bold">+1.00</span>
-                      <span className="text-slate-500">|</span>
-                      <span className="text-rose-400 font-bold">
-                        {negativeMarking ? '−0.25' : '0.00'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Question Prompt */}
-                  <div>
-                    <h2 className="text-base md:text-lg font-bold text-white leading-relaxed">
-                      {currQ.question}
-                    </h2>
-                  </div>
-
-                  {/* Options */}
-                  <div className="grid gap-3">
-                    {currQ.options.map((opt, optIdx) => {
-                      const isSelected = userAnswers[currentQuestionIndex] === optIdx;
-                      return (
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-[#142952]">
+                      <div className="flex items-center gap-2">
                         <button
-                          key={optIdx}
                           type="button"
-                          onClick={() => handleSelectAnswer(optIdx)}
-                          className={`flex items-center p-4 rounded-2xl border text-left transition-all ${
-                            isSelected
-                              ? 'border-blue-500 bg-blue-600/20 text-white shadow-lg'
-                              : 'border-white/10 bg-[#080c18] text-slate-300 hover:border-slate-600 hover:bg-[#0c1224]'
+                          onClick={handleToggleReview}
+                          className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
+                            markedForReview[currentQuestionIndex]
+                              ? 'border-purple-500 bg-purple-600/20 text-purple-300'
+                              : 'border-[#1b3668] bg-[#040d1e] text-slate-400 hover:text-white'
                           }`}
                         >
-                          <span
-                            className={`mr-3.5 flex h-7 w-7 items-center justify-center rounded-xl text-xs font-bold ${
-                              isSelected
-                                ? 'bg-blue-600 text-white shadow-md'
-                                : 'border border-white/10 bg-[#12182b] text-slate-400'
-                            }`}
-                          >
-                            {'ABCD'[optIdx]}
+                          <Flag className="h-3.5 w-3.5" />
+                          <span>
+                            {markedForReview[currentQuestionIndex] ? 'Marked' : 'Mark for Review'}
                           </span>
-                          <span className="text-xs md:text-sm font-medium">{opt}</span>
+                        </button>
+
+                        {userAnswers[currentQuestionIndex] !== null && (
+                          <button
+                            type="button"
+                            onClick={handleClearAnswer}
+                            className="rounded-xl border border-[#1b3668] bg-[#040d1e] px-3 py-2 text-xs font-semibold text-slate-400 hover:text-rose-400 cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentQuestionIndex((i) => Math.max(0, i - 1))}
+                          disabled={currentQuestionIndex === 0}
+                          className="rounded-xl border border-[#1b3668] bg-[#040d1e] px-4 py-2 text-xs font-bold text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 cursor-pointer"
+                        >
+                          <ArrowLeft className="h-4 w-4 inline mr-1" /> Prev
+                        </button>
+
+                        {currentQuestionIndex === questions.length - 1 ? (
+                          <button
+                            type="button"
+                            onClick={() => setShowSubmitModal(true)}
+                            className="rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white hover:bg-emerald-500 shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span>Submit Test</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCurrentQuestionIndex((i) => Math.min(questions.length - 1, i + 1))
+                            }
+                            className="rounded-xl bg-[#2563eb] px-5 py-2 text-xs font-bold text-white hover:bg-[#1d4ed8] shadow-md transition-all cursor-pointer"
+                          >
+                            Next <ArrowRight className="h-4 w-4 inline ml-1" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Question Palette */}
+              <div className="space-y-4">
+                <div className="rounded-3xl border border-[#162d59] bg-[#061126] p-5 shadow-2xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-[#142952] pb-3">
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                        Question Palette
+                      </h3>
+                      <p className="text-[0.68rem] text-slate-400 mt-0.5">
+                        Click any number to jump directly
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTestActive(false);
+                        setTestSubmitted(false);
+                      }}
+                      className="text-[11px] font-semibold text-slate-400 hover:text-rose-300 cursor-pointer"
+                    >
+                      Exit
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[0.68rem]">
+                    <div className="flex items-center gap-1.5 text-slate-300">
+                      <span className="h-3 w-3 rounded-md bg-emerald-500" />
+                      <span>Answered ({userAnswers.filter((a) => a !== null).length})</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-slate-300">
+                      <span className="h-3 w-3 rounded-md bg-slate-700" />
+                      <span>Not Answered ({userAnswers.filter((a) => a === null).length})</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-slate-300">
+                      <span className="h-3 w-3 rounded-md bg-purple-500" />
+                      <span>Marked ({markedForReview.filter(Boolean).length})</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-slate-300">
+                      <span className="h-3 w-3 rounded-md border border-[#38bdf8] bg-[#2563eb]/30" />
+                      <span>Current</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-5 gap-2 pt-2 border-t border-[#142952] max-h-64 overflow-y-auto pr-1">
+                    {questions.map((_, i) => {
+                      const isAnswered = userAnswers[i] !== null;
+                      const isMarked = markedForReview[i];
+                      const isCurrent = i === currentQuestionIndex;
+
+                      let bgClass = 'bg-[#091834] text-slate-300 border border-[#1b3668]';
+                      if (isAnswered) bgClass = 'bg-emerald-600 text-white font-bold';
+                      if (isMarked) bgClass = 'bg-purple-600 text-white font-bold';
+                      if (isCurrent) bgClass += ' ring-2 ring-[#38bdf8] scale-105';
+
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setCurrentQuestionIndex(i)}
+                          className={`h-10 rounded-xl text-xs font-bold transition-all flex items-center justify-center relative cursor-pointer ${bgClass}`}
+                        >
+                          <span>{i + 1}</span>
+                          {isMarked && isAnswered && (
+                            <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                          )}
                         </button>
                       );
                     })}
                   </div>
 
-                  {/* Bottom Action Buttons */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-white/10">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleToggleReview}
-                        className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${
-                          markedForReview[currentQuestionIndex]
-                            ? 'border-purple-500 bg-purple-600/20 text-purple-300'
-                            : 'border-white/10 bg-[#080c18] text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <Flag className="h-3.5 w-3.5" />
-                        <span>{markedForReview[currentQuestionIndex] ? 'Marked' : 'Mark for Review'}</span>
-                      </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSubmitModal(true)}
+                    className="w-full mt-3 rounded-xl bg-gradient-to-r from-[#2563eb] to-[#1d4ed8] py-2.5 text-xs font-bold text-white hover:brightness-110 shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Submit Mock Test</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
-                      {userAnswers[currentQuestionIndex] !== null && (
+          {/* ==================== VIEW ALL CHAPTERS / CUSTOM TOPIC MODAL ==================== */}
+          {allChaptersModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in">
+              <div className="w-full max-w-2xl rounded-2xl border border-[#1e3d75] bg-[#061229] p-6 shadow-2xl space-y-5 max-h-[85vh] flex flex-col">
+                <div className="flex items-center justify-between border-b border-[#142952] pb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">
+                      Select Chapter or Enter Any Custom Topic ({subject})
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Pick from syllabus chapters below or type any topic in the world to generate a custom mock test
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAllChaptersModalOpen(false)}
+                    className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* Custom Topic Input inside Modal */}
+                <div className="rounded-xl border border-[#1e3d75] bg-[#040d1e] p-3.5 space-y-2">
+                  <label className="text-xs font-bold text-sky-300 block">
+                    ✨ Mock Test on Any Custom Topic:
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={customTopicModalInput}
+                      onChange={(e) => setCustomTopicModalInput(e.target.value)}
+                      placeholder="Type any topic (e.g., Quadratic Equations, Photosynthesis, Laws of Motion, Organic Chemistry...)"
+                      className="flex-1 rounded-xl border border-[#1b3668] bg-[#07142b] px-3.5 py-2.5 text-xs md:text-sm text-white placeholder:text-slate-500 focus:border-[#38bdf8] focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (customTopicModalInput.trim()) {
+                          setTopic(customTopicModalInput.trim());
+                          setAllChaptersModalOpen(false);
+                        }
+                      }}
+                      className="rounded-xl bg-[#2563eb] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#1d4ed8] transition-colors cursor-pointer whitespace-nowrap"
+                    >
+                      Use Topic
+                    </button>
+                  </div>
+                </div>
+
+                {/* All Chapters Grid */}
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                  <div className="text-xs font-semibold text-slate-400 mb-2">
+                    Recommended {subject} Chapters:
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {currentSubjectTopics.map((chap, idx) => {
+                      const isSelected = topic === chap;
+                      return (
                         <button
+                          key={chap}
                           type="button"
-                          onClick={handleClearAnswer}
-                          className="rounded-xl border border-white/10 bg-[#080c18] px-3 py-2 text-xs font-semibold text-slate-400 hover:text-rose-400"
+                          onClick={() => {
+                            setTopic(chap);
+                            setAllChaptersModalOpen(false);
+                          }}
+                          className={`flex items-center justify-between rounded-xl border p-3 text-left text-xs transition-all cursor-pointer ${
+                            isSelected
+                              ? 'border-[#38bdf8] bg-[#102a56] text-white font-semibold'
+                              : 'border-[#162d59] bg-[#08152e] text-slate-200 hover:border-[#2563eb]'
+                          }`}
                         >
-                          Clear
+                          <span className="truncate pr-2">
+                            {idx + 1}. {chap}
+                          </span>
+                          {isSelected && <Check className="h-4 w-4 text-[#38bdf8] shrink-0" />}
                         </button>
-                      )}
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==================== SUBMIT CONFIRMATION MODAL ==================== */}
+          {showSubmitModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+              <div className="w-full max-w-md rounded-3xl border border-[#1e3d75] bg-[#07142b] p-6 shadow-2xl space-y-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#2563eb]/20 text-[#38bdf8] border border-[#38bdf8]/30">
+                    <FileText className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">Submit Mock Test?</h3>
+                    <p className="text-xs text-slate-400">
+                      Review your attempt summary before submitting
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
+                    <div className="text-xl font-black text-emerald-400">
+                      {userAnswers.filter((a) => a !== null).length}
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setCurrentQuestionIndex((i) => Math.max(0, i - 1))}
-                        disabled={currentQuestionIndex === 0}
-                        className="rounded-xl border border-white/10 bg-[#080c18] px-4 py-2 text-xs font-bold text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5"
-                      >
-                        <ArrowLeft className="h-4 w-4 inline mr-1" /> Prev
-                      </button>
-
-                      {currentQuestionIndex === questions.length - 1 ? (
-                        <button
-                          type="button"
-                          onClick={() => setShowSubmitModal(true)}
-                          className="rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white hover:bg-emerald-500 shadow-md transition-all active:scale-95 flex items-center gap-1.5"
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                          <span>Submit Test</span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setCurrentQuestionIndex((i) => Math.min(questions.length - 1, i + 1))}
-                          className="rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white hover:bg-blue-500 shadow-md transition-all active:scale-95"
-                        >
-                          Next <ArrowRight className="h-4 w-4 inline ml-1" />
-                        </button>
-                      )}
+                    <div className="text-[0.65rem] text-emerald-200 uppercase font-bold mt-0.5">
+                      Answered
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[#1b3668] bg-[#040d1e] p-3">
+                    <div className="text-xl font-black text-slate-300">
+                      {userAnswers.filter((a) => a === null).length}
+                    </div>
+                    <div className="text-[0.65rem] text-slate-400 uppercase font-bold mt-0.5">
+                      Unattempted
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-3">
+                    <div className="text-xl font-black text-purple-400">
+                      {markedForReview.filter(Boolean).length}
+                    </div>
+                    <div className="text-[0.65rem] text-purple-200 uppercase font-bold mt-0.5">
+                      Marked
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Right Col: Professional Question Palette Panel */}
-            <div className="space-y-4">
-              <div className="rounded-3xl border border-white/10 bg-[#0d1222] p-5 shadow-2xl space-y-4">
-                <div className="border-b border-white/10 pb-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                    Question Palette
-                  </h3>
-                  <p className="text-[0.68rem] text-slate-500 mt-0.5">
-                    Click any number to jump directly
-                  </p>
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200/90 flex items-start gap-2.5">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
+                  <span>
+                    Time remaining: <strong>{formatTimer(secondsRemaining)}</strong>. Once
+                    submitted, your scorecard and question-by-question explanations will be shown.
+                  </span>
                 </div>
 
-                {/* Status Legend */}
-                <div className="grid grid-cols-2 gap-2 text-[0.68rem]">
-                  <div className="flex items-center gap-1.5 text-slate-300">
-                    <span className="h-3 w-3 rounded-md bg-emerald-500" />
-                    <span>Answered ({userAnswers.filter((a) => a !== null).length})</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-slate-300">
-                    <span className="h-3 w-3 rounded-md bg-slate-700" />
-                    <span>Not Answered ({userAnswers.filter((a) => a === null).length})</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-slate-300">
-                    <span className="h-3 w-3 rounded-md bg-purple-500" />
-                    <span>Marked ({markedForReview.filter(Boolean).length})</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-slate-300">
-                    <span className="h-3 w-3 rounded-md border border-blue-500 bg-blue-600/30" />
-                    <span>Current</span>
-                  </div>
-                </div>
-
-                {/* Question Numbers Grid */}
-                <div className="grid grid-cols-5 gap-2 pt-2 border-t border-white/10">
-                  {questions.map((_, i) => {
-                    const isAnswered = userAnswers[i] !== null;
-                    const isMarked = markedForReview[i];
-                    const isCurrent = i === currentQuestionIndex;
-
-                    let bgClass = 'bg-[#12182b] text-slate-400 border border-white/5';
-                    if (isAnswered) bgClass = 'bg-emerald-600 text-white font-bold';
-                    if (isMarked) bgClass = 'bg-purple-600 text-white font-bold';
-                    if (isCurrent) bgClass += ' ring-2 ring-blue-400 scale-105';
-
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setCurrentQuestionIndex(i)}
-                        className={`h-10 rounded-xl text-xs font-bold transition-all flex items-center justify-center relative ${bgClass}`}
-                      >
-                        <span>{i + 1}</span>
-                        {isMarked && isAnswered && (
-                          <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-emerald-300" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Dedicated Palette Submit Button */}
-                <button
-                  type="button"
-                  onClick={() => setShowSubmitModal(true)}
-                  className="w-full mt-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 py-2.5 text-xs font-bold text-white hover:from-blue-500 hover:to-indigo-500 shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Submit Examination</span>
-                </button>
-              </div>
-
-              {/* Candidate Info Box */}
-              <div className="rounded-2xl border border-white/10 bg-[#0d1222] p-4 text-xs text-slate-300 space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Candidate:</span>
-                  <span className="font-bold text-white">{profile.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Grade:</span>
-                  <span className="font-bold text-blue-400">{profile.classLevel}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Exam:</span>
-                  <span className="font-bold text-slate-300">{profile.primaryExam}</span>
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSubmitModal(false)}
+                    className="flex-1 rounded-xl border border-[#1b3668] bg-[#0a1936] py-3 text-xs font-bold text-slate-300 hover:text-white transition-all cursor-pointer"
+                  >
+                    Return to Test
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSubmitTest}
+                    className="flex-1 rounded-xl bg-[#2563eb] py-3 text-xs font-bold text-white hover:bg-[#1d4ed8] shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all cursor-pointer"
+                  >
+                    Confirm Submit
+                  </button>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Submit Confirmation Modal */}
-        {showSubmitModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-            <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0d1222] p-6 shadow-2xl space-y-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                  <FileText className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">Submit Examination?</h3>
-                  <p className="text-xs text-slate-400">Review your attempt status before final submission</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
-                  <div className="text-xl font-black text-emerald-400">
-                    {userAnswers.filter((a) => a !== null).length}
-                  </div>
-                  <div className="text-[0.65rem] text-emerald-200 uppercase font-bold mt-0.5">Answered</div>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-[#070b16] p-3">
-                  <div className="text-xl font-black text-slate-400">
-                    {userAnswers.filter((a) => a === null).length}
-                  </div>
-                  <div className="text-[0.65rem] text-slate-400 uppercase font-bold mt-0.5">Unattempted</div>
-                </div>
-                <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-3">
-                  <div className="text-xl font-black text-purple-400">
-                    {markedForReview.filter(Boolean).length}
-                  </div>
-                  <div className="text-[0.65rem] text-purple-200 uppercase font-bold mt-0.5">Marked</div>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200/90 flex items-start gap-2.5">
-                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
-                <span>
-                  Time remaining: <strong>{formatTimer(secondsRemaining)}</strong>. Once submitted, your score and detailed answer solutions will be generated.
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowSubmitModal(false)}
-                  className="flex-1 rounded-xl border border-white/10 bg-[#12182b] py-3 text-xs font-bold text-slate-300 hover:text-white hover:border-slate-500 transition-all"
-                >
-                  Return to Exam
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSubmitTest}
-                  className="flex-1 rounded-xl bg-blue-600 py-3 text-xs font-bold text-white hover:bg-blue-500 shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all"
-                >
-                  Confirm Submit
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

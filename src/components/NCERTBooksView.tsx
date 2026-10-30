@@ -86,7 +86,7 @@ export const NCERTBooksView: React.FC = () => {
     if (action === 'doubt') {
       setActiveTab('/tutor');
     } else if (action === 'summary') {
-      setActiveTab('/summarize');
+      setActiveTab('/notes');
     } else if (action === 'practice') {
       setActiveTab('/practice');
     }
@@ -119,34 +119,6 @@ export const NCERTBooksView: React.FC = () => {
             <p className="mt-2 text-xs md:text-sm text-slate-300 max-w-2xl leading-relaxed">
               Explore the newly released NCERT textbooks for Classes 4 through 9: <strong>Maths Mela</strong>, <strong>Our Wondrous World</strong>, <strong>Santoor</strong>, <strong>Veena</strong>, <strong>Ganita Prakash</strong>, <strong>Curiosity</strong>, <strong>Exploring Society</strong>, <strong>Poorvi</strong>, <strong>Malhar</strong>, <strong>Ganita Manjari</strong>, <strong>Exploration</strong>, <strong>Understanding Society</strong>, <strong>Kaveri</strong>, and <strong>Ganga</strong>.
             </p>
-          </div>
-
-          {/* Toggle between Books Repository and AI Solutions */}
-          <div className="flex items-center rounded-2xl border border-white/10 bg-[#070b16] p-1.5 shrink-0 shadow-lg">
-            <button
-              type="button"
-              onClick={() => setActiveTabMode('books')}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                activeTabMode === 'books'
-                  ? 'bg-[#2563eb] text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <BookOpen className="h-4 w-4" />
-              <span>2026–27 Textbooks</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTabMode('solutions')}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                activeTabMode === 'solutions'
-                  ? 'bg-[#2563eb] text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Sparkles className="h-4 w-4 text-[#38bdf8]" />
-              <span>NCERT AI Solutions</span>
-            </button>
           </div>
         </div>
 

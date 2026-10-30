@@ -280,3 +280,138 @@ export const FormulaVaultModal: React.FC = () => {
     </div>
   );
 };
+
+export const FormulaVaultView: React.FC = () => {
+  const [selectedSubject, setSelectedSubject] = useState<string>('All');
+  const [search, setSearch] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const subjects = ['All', 'Physics', 'Chemistry', 'Mathematics', 'Biology'];
+
+  const filtered = formulaDatabase.filter((item) => {
+    const matchSubject = selectedSubject === 'All' || item.subject === selectedSubject;
+    const matchSearch =
+      item.title.toLowerCase().includes(search.toLowerCase()) ||
+      item.formula.toLowerCase().includes(search.toLowerCase()) ||
+      item.meaning.toLowerCase().includes(search.toLowerCase());
+    return matchSubject && matchSearch;
+  });
+
+  const handleCopy = (formula: string, id: string) => {
+    navigator.clipboard.writeText(formula);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  };
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-6 pb-16 font-['Sora'] select-none">
+      <div className="rounded-2xl border border-white/10 bg-[#0c1428] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="p-3 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-400">
+            <Bookmark className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              Formula &amp; Cheat Sheet Vault <Sparkles className="h-4 w-4 text-amber-400" />
+            </h1>
+            <p className="text-xs md:text-sm text-slate-400 mt-0.5">
+              High-yield equations, definitions, SI units, and exam mnemonics across Physics, Chemistry, Maths &amp; Biology
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Bar */}
+      <div className="rounded-2xl border border-white/10 bg-[#0a1020] p-5 space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search formula, concept, or term (e.g. Newton, Ohm, Quadratic, ATP)..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-xl border border-white/10 bg-[#070b16] pl-10 pr-4 py-2.5 text-xs md:text-sm text-white focus:border-blue-500 focus:outline-none placeholder:text-slate-500"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {subjects.map((sub) => (
+            <button
+              key={sub}
+              type="button"
+              onClick={() => setSelectedSubject(sub)}
+              className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                selectedSubject === sub
+                  ? 'bg-[#1660d8] text-white shadow-sm'
+                  : 'bg-[#0e1629] text-slate-300 hover:text-white border border-white/10'
+              }`}
+            >
+              {sub}
+            </button>
+          ))}
+        </div>
+
+        {/* List of Formulas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          {filtered.length === 0 ? (
+            <div className="col-span-full p-8 text-center text-slate-400 text-sm">
+              No formulas matched your search. Try another keyword.
+            </div>
+          ) : (
+            filtered.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-white/10 bg-[#0d152a] p-4 transition-all hover:border-blue-500/50 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[0.65rem] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                          item.subject === 'Physics'
+                            ? 'bg-sky-500/20 text-sky-300'
+                            : item.subject === 'Chemistry'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : item.subject === 'Mathematics'
+                            ? 'bg-amber-500/20 text-amber-300'
+                            : 'bg-rose-500/20 text-rose-300'
+                        }`}
+                      >
+                        {item.subject}
+                      </span>
+                      <h4 className="text-sm font-bold text-white">{item.title}</h4>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(item.formula, item.id)}
+                      className="flex items-center gap-1 text-xs text-slate-400 hover:text-white px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                    >
+                      {copiedId === item.id ? (
+                        <>
+                          <Check className="h-3 w-3 text-emerald-400" /> Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" /> Copy
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="rounded-xl bg-[#070b16] border border-blue-500/30 p-3 font-mono text-xs md:text-sm text-blue-300 font-semibold select-all">
+                    {item.formula}
+                  </div>
+
+                  <p className="mt-2.5 text-xs text-slate-300 leading-relaxed">{item.meaning}</p>
+                </div>
+                <p className="mt-2 pt-2 border-t border-white/5 text-[0.7rem] text-slate-400">
+                  💡 Tip: {item.tip}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+

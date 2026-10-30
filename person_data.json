@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "1.0.0",
+  "lastUpdated": "2026-10-30T11:15:00.000Z",
+  "activePersonEmail": "aaravsharma@gmail.com",
+  "persons": {
+    "aaravsharma@gmail.com": {
+      "schemaVersion": "1.0.0",
+      "updatedAt": "2026-10-30T11:15:00.000Z",
+      "account": {
+        "uid": "aaravsharma@gmail.com",
+        "email": "aaravsharma@gmail.com",
+        "displayName": "Aarav Sharma",
+        "photoURL": null,
+        "provider": "email",
+        "accountPlan": "Free Plan"
+      },
+      "profile": {
+        "name": "Aarav Sharma",
+        "classLevel": "Class 10",
+        "primaryExam": "CBSE",
+        "secondaryExams": [],
+        "language": "English",
+        "dailyHours": 3,
+        "persona": "Friendly & Encouraging Mentor",
+        "onboarded": true
+      },
+      "settings": {
+        "themeMode": "Dark",
+        "notifications": {
+          "studyReminders": true,
+          "testResults": true,
+          "dailyMotivation": false
+        }
+      },
+      "stats": {
+        "studyTimeMinutes": 150,
+        "questionsSolved": 45,
+        "correctAnswers": 38,
+        "testAccuracy": 84,
+        "dayStreak": 5,
+        "starsEarned": 120,
+        "badgesCount": 3
+      },
+      "dailyStudyLog": {
+        "2026-10-28": 45,
+        "2026-10-29": 60,
+        "2026-10-30": 45
+      },
+      "notes": [],
+      "mockTests": [],
+      "studyPlanner": {
+        "examType": "Board Exam (CBSE)",
+        "examDate": "2025-05-15",
+        "dailyHours": 3,
+        "studyWindow": "evening",
+        "examConfigs": {},
+        "timetable": []
+      },
+      "flashcards": {
+        "activeDeckName": "",
+        "cards": [],
+        "masteredIds": []
+      },
+      "studyTimer": {
+        "savedTimers": [
+          {
+            "id": "maths-revision",
+            "title": "Maths Revision",
+            "focusMinutes": 25,
+            "breakMinutes": 5,
+            "tag": "(Pomodoro)",
+            "iconType": "book"
+          },
+          {
+            "id": "physics-practice",
+            "title": "Physics Practice",
+            "focusMinutes": 40,
+            "breakMinutes": 10,
+            "iconType": "flask"
+          },
+          {
+            "id": "english-reading",
+            "title": "English Reading",
+            "focusMinutes": 30,
+            "breakMinutes": 10,
+            "iconType": "book"
+          },
+          {
+            "id": "custom-timer-45",
+            "title": "Custom Timer",
+            "focusMinutes": 45,
+            "breakMinutes": 15,
+            "iconType": "timer"
+          }
+        ],
+        "completedSessions": []
+      },
+      "mistakes": [],
+      "tutorHistory": [],
+      "recentScans": []
+    }
+  }
+}

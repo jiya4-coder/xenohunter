@@ -19,6 +19,11 @@ export interface StudyStats {
   badgesCount: number;
 }
 
+export interface GroundingSource {
+  title: string;
+  uri: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -26,6 +31,9 @@ export interface ChatMessage {
   timestamp: string;
   mode?: string;
   learningAids?: string[];
+  sources?: GroundingSource[];
+  searchQueries?: string[];
+  grounded?: boolean;
 }
 
 export interface MockQuestion {
@@ -152,6 +160,8 @@ export interface PromptHistoryItem {
   subject?: string;
   classLevel?: string;
   starred?: boolean;
+  sources?: GroundingSource[];
+  searchQueries?: string[];
 }
 
 export type BadgeCategory = 'mock_tests' | 'study_streak' | 'mastery' | 'milestones';

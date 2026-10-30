@@ -1,15 +1,9 @@
 import { AchievementBadge, DailyStudyLog } from '../types';
 import confetti from 'canvas-confetti';
+import { getActiveEmail, getUserItem, setUserItem } from './userStorage';
+import { saveUserDailyStudyLog, saveUserMockTests } from '../firebase';
 
-export const INITIAL_ACHIEVEMENT_MOCK_TESTS = [
-  { id: 'mt-1', name: 'Science: Laws of Motion & Friction', subject: 'Science', score: 100, maxScore: 100, date: 'Oct 19', focusArea: 'Flawless performance!' },
-  { id: 'mt-2', name: 'Mathematics: Coordinate Geometry & Lines', subject: 'Mathematics', score: 100, maxScore: 100, date: 'Oct 21', focusArea: 'Flawless performance!' },
-  { id: 'mt-3', name: 'Computer Science: Python Loops & Conditionals', subject: 'Computer Science', score: 100, maxScore: 100, date: 'Oct 23', focusArea: 'Flawless performance!' },
-  { id: 'mt-4', name: 'English: Grammar & Reported Speech', subject: 'English', score: 92, maxScore: 100, date: 'Oct 24', focusArea: 'Revise: Reported Speech Rules' },
-  { id: 'mt-5', name: 'Science: Cell Structure & Tissues', subject: 'Science', score: 86, maxScore: 100, date: 'Oct 22', focusArea: 'Revise: Mitochondria & Chloroplasts' },
-  { id: 'mt-6', name: 'Social Science: French Revolution Diagnostic', subject: 'Social Science', score: 84, maxScore: 100, date: 'Oct 20', focusArea: 'Revise: Third Estate Demands' },
-  { id: 'mt-7', name: 'Mathematics: Linear Equations in Two Vars', subject: 'Mathematics', score: 88, maxScore: 100, date: 'Oct 18', focusArea: 'Revise: Elimination Method' },
-];
+export const INITIAL_ACHIEVEMENT_MOCK_TESTS: any[] = [];
 
 /**
  * Returns the last 7 days keys (YYYY-MM-DD)
@@ -28,76 +22,63 @@ export const getLast7DaysKeys = (): { dateKey: string; label: string; dateObj: D
 };
 
 /**
- * Initialize or get daily study logs (60+ minutes per day for habit tracking)
+ * Get daily study logs (60+ minutes per day for habit tracking) scoped to current user's Email ID
  */
-export const getDailyStudyLogs = (): Record<string, number> => {
+export const getDailyStudyLogs = (emailOverride?: string | null): Record<string, number> => {
   try {
-    const saved = localStorage.getItem('studybot_daily_study_log');
+    const saved = getUserItem('studybot_daily_study_log', emailOverride);
     if (saved) return JSON.parse(saved);
   } catch {}
-
-  // Pre-seed a realistic 6-day streak with today at 45 minutes
-  const days = getLast7DaysKeys();
-  const initialLog: Record<string, number> = {};
-  
-  // Previous 6 days had >= 60 minutes
-  days.slice(0, 6).forEach((day, index) => {
-    initialLog[day.dateKey] = 60 + (index * 5 % 25); // 60, 65, 70, 75, 80, 85 mins
-  });
-  // Today has 45 minutes so student is 15 mins away from 7-day completion
-  initialLog[days[6].dateKey] = 45;
-
-  try {
-    localStorage.setItem('studybot_daily_study_log', JSON.stringify(initialLog));
-  } catch {}
-
-  return initialLog;
+  return {};
 };
 
 /**
- * Save daily study minutes for today
+ * Save daily study minutes for today scoped to the current user's Email ID
  */
-export const logDailyStudyMinutes = (addedMinutes: number): Record<string, number> => {
-  const logs = getDailyStudyLogs();
+export const logDailyStudyMinutes = (addedMinutes: number, emailOverride?: string | null): Record<string, number> => {
+  const logs = getDailyStudyLogs(emailOverride);
   const todayKey = new Date().toISOString().split('T')[0];
   logs[todayKey] = (logs[todayKey] || 0) + addedMinutes;
   try {
-    localStorage.setItem('studybot_daily_study_log', JSON.stringify(logs));
+    setUserItem('studybot_daily_study_log', JSON.stringify(logs), emailOverride);
+    const email = emailOverride || getActiveEmail();
+    if (email) {
+      saveUserDailyStudyLog(email, logs);
+    }
     window.dispatchEvent(new Event('studybot:study-log-updated'));
   } catch {}
   return logs;
 };
 
 /**
- * Read Mock Tests list from localStorage (or fallback to seed)
+ * Read Mock Tests list from email-scoped localStorage
  */
-export const getStoredMockTests = (): any[] => {
+export const getStoredMockTests = (emailOverride?: string | null): any[] => {
   try {
-    const saved = localStorage.getItem('studybot_progress_mocktests');
+    const saved = getUserItem('studybot_progress_mocktests', emailOverride);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch {}
-
-  try {
-    localStorage.setItem('studybot_progress_mocktests', JSON.stringify(INITIAL_ACHIEVEMENT_MOCK_TESTS));
-  } catch {}
-  return INITIAL_ACHIEVEMENT_MOCK_TESTS;
+  return [];
 };
 
 /**
- * Save a new mock test record and trigger badge evaluation
+ * Save a new mock test record scoped to the current user's Email ID and trigger badge evaluation
  */
-export const recordMockTest = (test: {
-  name: string;
-  subject: string;
-  score: number;
-  maxScore: number;
-  date?: string;
-  focusArea?: string;
-}) => {
-  const tests = getStoredMockTests();
+export const recordMockTest = (
+  test: {
+    name: string;
+    subject: string;
+    score: number;
+    maxScore: number;
+    date?: string;
+    focusArea?: string;
+  },
+  emailOverride?: string | null
+) => {
+  const tests = getStoredMockTests(emailOverride);
   const newRecord = {
     id: `mt-${Date.now()}`,
     name: test.name,
@@ -109,16 +90,20 @@ export const recordMockTest = (test: {
   };
   tests.unshift(newRecord);
   try {
-    localStorage.setItem('studybot_progress_mocktests', JSON.stringify(tests));
+    setUserItem('studybot_progress_mocktests', JSON.stringify(tests), emailOverride);
+    const email = emailOverride || getActiveEmail();
+    if (email) {
+      saveUserMockTests(email, tests);
+    }
     window.dispatchEvent(new Event('studybot:mocktest-updated'));
   } catch {}
   return newRecord;
 };
 
 /**
- * Compute the full badges status list
+ * Compute the full badges status list for the active user's Email ID
  */
-export const computeAchievements = (): {
+export const computeAchievements = (emailOverride?: string | null): {
   badges: AchievementBadge[];
   dailyLogs: DailyStudyLog[];
   currentConsecutive1HrDays: number;
@@ -128,8 +113,8 @@ export const computeAchievements = (): {
   fullMarksCount: number;
   ninetyPlusCount: number;
 } => {
-  const tests = getStoredMockTests();
-  const dailyStudyMap = getDailyStudyLogs();
+  const tests = getStoredMockTests(emailOverride);
+  const dailyStudyMap = getDailyStudyLogs(emailOverride);
   const sevenDays = getLast7DaysKeys();
 
   // 1. Analyze mock tests
@@ -160,32 +145,40 @@ export const computeAchievements = (): {
   });
 
   // Check how many days in the 7-day period met the 1 hour (>= 60 min) requirement
-  let consecutive1HrDays = 0;
-  for (let i = dailyLogs.length - 1; i >= 0; i--) {
-    if (dailyLogs[i].targetMet) {
-      consecutive1HrDays++;
-    } else {
-      break;
-    }
-  }
-  // Also calculate total days met out of the 7-day window
   const totalDaysMetInWeek = dailyLogs.filter((d) => d.targetMet).length;
 
   // 3. Analyze mistakes mastered
-  let masteredMistakesCount = 1;
+  let masteredMistakesCount = 0;
   try {
-    const mistakes = JSON.parse(localStorage.getItem('studybot_mistakes') || '[]');
-    masteredMistakesCount = mistakes.filter((m: any) => m.mastered).length;
+    const mistakes = JSON.parse(getUserItem('studybot_mistakes', emailOverride) || '[]');
+    if (Array.isArray(mistakes)) {
+      masteredMistakesCount = mistakes.filter((m: any) => m.mastered).length;
+    }
   } catch {}
 
   // 4. Analyze total study time
-  let totalStudyMinutes = 160;
+  let totalStudyMinutes = 0;
   try {
-    const stats = JSON.parse(localStorage.getItem('studybot_stats') || '{}');
-    if (stats.studyTimeMinutes) totalStudyMinutes = stats.studyTimeMinutes;
+    const stats = JSON.parse(getUserItem('studybot_stats', emailOverride) || '{}');
+    if (typeof stats.studyTimeMinutes === 'number') totalStudyMinutes = stats.studyTimeMinutes;
   } catch {}
 
-  // 5. Construct Badges List
+  // 5. Analyze completed planner tasks
+  let completedPlannerCount = 0;
+  try {
+    for (let c = 4; c <= 9; c++) {
+      const slots = JSON.parse(getUserItem(`studybot_timetable_c${c}`, emailOverride) || '[]');
+      if (Array.isArray(slots)) {
+        completedPlannerCount += slots.filter((s: any) => s.completed).length;
+      }
+    }
+    const todayTasks = JSON.parse(getUserItem('studybot_progress_today_tasks', emailOverride) || '[]');
+    if (Array.isArray(todayTasks)) {
+      completedPlannerCount += todayTasks.filter((t: any) => t.completed).length;
+    }
+  } catch {}
+
+  // 6. Construct Badges List
   const badges: AchievementBadge[] = [
     // Requirement 1: Full Marks in 5 Mock Tests
     {
@@ -200,7 +193,7 @@ export const computeAchievements = (): {
       targetValue: 5,
       unit: 'tests',
       unlocked: fullMarksCount >= 5,
-      unlockedAt: fullMarksCount >= 5 ? 'Unlocked Oct 2026' : undefined,
+      unlockedAt: fullMarksCount >= 5 ? 'Unlocked' : undefined,
       rarity: 'legendary',
       xpReward: 500,
       qualifyingDetails: fullMarksTests.map(
@@ -220,7 +213,7 @@ export const computeAchievements = (): {
       targetValue: 5,
       unit: 'tests',
       unlocked: ninetyPlusCount >= 5,
-      unlockedAt: ninetyPlusCount >= 5 ? 'Unlocked Oct 2026' : undefined,
+      unlockedAt: ninetyPlusCount >= 5 ? 'Unlocked' : undefined,
       rarity: 'epic',
       xpReward: 350,
       qualifyingDetails: ninetyPlusTests.map(
@@ -260,10 +253,10 @@ export const computeAchievements = (): {
       targetValue: 1,
       unit: 'test',
       unlocked: tests.length >= 1,
-      unlockedAt: 'Unlocked Oct 19',
+      unlockedAt: tests.length >= 1 ? 'Unlocked' : undefined,
       rarity: 'common',
       xpReward: 100,
-      qualifyingDetails: tests.length > 0 ? [`First test: ${tests[tests.length - 1]?.name || 'Diagnostic Drill'}`] : [],
+      qualifyingDetails: tests.length > 0 ? [`First test: ${tests[tests.length - 1]?.name || 'Mock Test'}`] : [],
     },
     // General Badge 5: Mock Test Centurion (10 tests)
     {
@@ -278,7 +271,7 @@ export const computeAchievements = (): {
       targetValue: 10,
       unit: 'tests',
       unlocked: tests.length >= 10,
-      unlockedAt: tests.length >= 10 ? 'Unlocked Oct 2026' : undefined,
+      unlockedAt: tests.length >= 10 ? 'Unlocked' : undefined,
       rarity: 'rare',
       xpReward: 250,
       qualifyingDetails: [`${tests.length} total tests recorded in your logbook`],
@@ -296,7 +289,7 @@ export const computeAchievements = (): {
       targetValue: 3,
       unit: 'mistakes',
       unlocked: masteredMistakesCount >= 3,
-      unlockedAt: masteredMistakesCount >= 3 ? 'Unlocked Oct 23' : undefined,
+      unlockedAt: masteredMistakesCount >= 3 ? 'Unlocked' : undefined,
       rarity: 'rare',
       xpReward: 200,
       qualifyingDetails: [`${masteredMistakesCount} errors successfully re-tested and mastered`],
@@ -314,7 +307,7 @@ export const computeAchievements = (): {
       targetValue: 300,
       unit: 'mins',
       unlocked: totalStudyMinutes >= 300,
-      unlockedAt: totalStudyMinutes >= 300 ? 'Unlocked This Month' : undefined,
+      unlockedAt: totalStudyMinutes >= 300 ? 'Unlocked' : undefined,
       rarity: 'rare',
       xpReward: 200,
       qualifyingDetails: [`${totalStudyMinutes} minutes of focused learning logged`],
@@ -328,14 +321,14 @@ export const computeAchievements = (): {
       iconName: 'CalendarCheck',
       category: 'milestones',
       criteria: 'Complete scheduled study planner tasks',
-      currentValue: 1,
+      currentValue: Math.min(completedPlannerCount, 1),
       targetValue: 1,
       unit: 'goal',
-      unlocked: true,
-      unlockedAt: 'Unlocked Today',
+      unlocked: completedPlannerCount >= 1,
+      unlockedAt: completedPlannerCount >= 1 ? 'Unlocked' : undefined,
       rarity: 'common',
       xpReward: 150,
-      qualifyingDetails: ['Timetable followed for current week'],
+      qualifyingDetails: completedPlannerCount > 0 ? [`${completedPlannerCount} study planner tasks completed`] : [],
     },
   ];
 

@@ -1,23 +1,55 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAuthenticated() {
-      return request.auth != null;
+    // ===============================================================
+    // Assumed Data Model (Email-ID Keyed Storage)
+    // ===============================================================
+    // Collection: /users/{emailKey}
+    //   - email: string (normalized email ID)
+    //   - emailKey: string (normalized email document ID)
+    //   - displayName: string
+    //   - classLevel, primaryExam, language: string
+    //   - dailyHours, dayStreak, questionsSolved, testAccuracy, studyTimeMinutes, stars: number
+    //   - dailyStudyLog: map, mockTests: list, recentScans: list
+    // Subcollections under /users/{emailKey}:
+    //   - /notes/{noteId}
+    //   - /mistakes/{mistakeId}
+    //   - /chat_messages/{msgId}
+    //   - /planner/{plannerId}
+    // ===============================================================
+
+    function isValidEmailKey(emailKey) {
+      return emailKey is string && emailKey.size() >= 3 && emailKey.size() <= 254;
     }
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+
+    match /test/{docId} {
+      allow read: if true;
     }
 
     match /users/{userId} {
-      allow read, write: if true;
+      allow read: if isValidEmailKey(userId);
+      allow create, update: if isValidEmailKey(userId) && request.resource.data.keys().size() <= 40;
+      allow delete: if isValidEmailKey(userId);
 
-      match /{allSubcollections=**} {
-        allow read, write: if true;
+      match /notes/{noteId} {
+        allow read, write: if isValidEmailKey(userId);
       }
-    }
 
-    match /{document=**} {
-      allow read, write: if true;
+      match /mistakes/{mistakeId} {
+        allow read, write: if isValidEmailKey(userId);
+      }
+
+      match /chat_messages/{msgId} {
+        allow read, write: if isValidEmailKey(userId);
+      }
+
+      match /planner/{plannerId} {
+        allow read, write: if isValidEmailKey(userId);
+      }
+
+      match /reminders/{reminderId} {
+        allow read, write: if isValidEmailKey(userId);
+      }
     }
   }
 }

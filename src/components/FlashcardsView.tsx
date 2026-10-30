@@ -16,108 +16,72 @@ import {
 import confetti from 'canvas-confetti';
 import { Flashcard } from '../types';
 import { safeFetchJson } from '../utils/api';
+import { getUserItem, setUserItem } from '../utils/userStorage';
 
-const defaultDecks: Record<string, Flashcard[]> = {
-  'Physics & Motion': [
-    {
-      id: 1,
-      front: "What is Newton's First Law of Motion (Law of Inertia)?",
-      back: 'An object will remain at rest or continue to move at a constant velocity unless acted upon by an external net force.',
-      tip: 'Inertia depends directly on the mass of the object.',
-      category: 'Physics',
-    },
-    {
-      id: 2,
-      front: 'Write the 3rd equation of motion and condition for applicability.',
-      back: 'v² = u² + 2as (where v is final velocity, u is initial velocity, a is acceleration, s is displacement).',
-      tip: 'Only valid for constant/uniform acceleration along a straight line.',
-      category: 'Physics',
-    },
-    {
-      id: 3,
-      front: 'What is the relationship between Work and Kinetic Energy?',
-      back: 'Work-Energy Theorem: Total work done on an object by all forces equals the change in its kinetic energy (W = ΔK = ½mv² - ½mu²).',
-      tip: 'Can be applied to both constant and variable forces.',
-      category: 'Physics',
-    },
-    {
-      id: 4,
-      front: 'What is Snell’s Law of Refraction?',
-      back: 'n₁ · sin(θ₁) = n₂ · sin(θ₂), where n is refractive index and θ is the angle with the normal.',
-      tip: 'When light moves from rarer to denser medium, it bends TOWARD the normal.',
-      category: 'Physics',
-    },
-    {
-      id: 5,
-      front: 'What is Electric Power in terms of current and resistance?',
-      back: 'P = V · I = I² · R = V² / R. Measured in Watts (Joules per second).',
-      tip: 'In series circuits, use P = I²R; in parallel, use P = V²/R.',
-      category: 'Physics',
-    },
-  ],
-  'Chemistry & Periodic Table': [
-    {
-      id: 101,
-      front: 'Why do noble gases (Group 18) have very low chemical reactivity?',
-      back: 'They have a completely filled valence electron shell (octet or duplet in He), giving them extraordinary thermodynamic stability.',
-      tip: 'He, Ne, Ar, Kr, Xe, Rn.',
-      category: 'Chemistry',
-    },
-    {
-      id: 102,
-      front: 'What is the difference between Oxidation and Reduction (OIL RIG)?',
-      back: 'Oxidation Is Loss of electrons (increase in oxidation number); Reduction Is Gain of electrons (decrease in oxidation number).',
-      tip: 'Mnemonic: OIL RIG (Oxidation Is Loss, Reduction Is Gain).',
-      category: 'Chemistry',
-    },
-    {
-      id: 103,
-      front: 'What happens to atomic radius across a period from left to right?',
-      back: 'Atomic radius DECREASES across a period because effective nuclear charge increases while electrons are added to the same energy shell.',
-      tip: 'Fluorine has a smaller radius than Lithium.',
-      category: 'Chemistry',
-    },
-    {
-      id: 104,
-      front: 'What is Le Chatelier’s Principle?',
-      back: 'If a dynamic equilibrium is disturbed by changing conditions (temperature, pressure, concentration), the position of equilibrium shifts to counteract the change.',
-      tip: 'Increasing pressure shifts equilibrium to the side with fewer gas moles.',
-      category: 'Chemistry',
-    },
-  ],
-  'Biology Essentials': [
-    {
-      id: 201,
-      front: 'Why is ATP called the energy currency of the cell?',
-      back: 'Adenosine Triphosphate stores readily usable chemical energy in its high-energy phosphoanhydride bonds, released when hydrolyzed to ADP + Pi.',
-      tip: 'Produced in mitochondria during oxidative phosphorylation.',
-      category: 'Biology',
-    },
-    {
-      id: 202,
-      front: 'What are the 4 main blood groups in the ABO system?',
-      back: 'A, B, AB, and O. Determined by presence or absence of A and B antigens on red blood cell membranes.',
-      tip: 'O- is universal donor; AB+ is universal recipient.',
-      category: 'Biology',
-    },
-    {
-      id: 203,
-      front: 'What is the main function of the Xylem vs Phloem in plants?',
-      back: 'Xylem transports water and dissolved minerals unidirectionally from roots to leaves. Phloem translocates sucrose and organic nutrients bidirectionally.',
-      tip: 'Xylem = water (upward); Phloem = food (all directions).',
-      category: 'Biology',
-    },
-  ],
-};
+const defaultDecks: Record<string, Flashcard[]> = {};
 
 export const FlashcardsView: React.FC = () => {
   const { profile, addStars, addStudyMinutes } = useStudy();
 
-  const [activeDeckName, setActiveDeckName] = useState<string>('Physics & Motion');
-  const [cards, setCards] = useState<Flashcard[]>(defaultDecks['Physics & Motion']);
+  const [activeDeckName, setActiveDeckName] = useState<string>(() => {
+    return getUserItem('studybot_flashcards_deck_name') || '';
+  });
+  const [cards, setCards] = useState<Flashcard[]>(() => {
+    try {
+      const saved = getUserItem('studybot_flashcards_cards');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [masteredIds, setMasteredIds] = useState<number[]>([]);
+  const [masteredIds, setMasteredIds] = useState<number[]>(() => {
+    try {
+      const saved = getUserItem('studybot_flashcards_mastered');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  React.useEffect(() => {
+    setUserItem('studybot_flashcards_deck_name', activeDeckName);
+    setUserItem('studybot_flashcards_cards', JSON.stringify(cards));
+    setUserItem('studybot_flashcards_mastered', JSON.stringify(masteredIds));
+    window.dispatchEvent(new Event('studybot:study-log-updated'));
+  }, [activeDeckName, cards, masteredIds]);
+
+  React.useEffect(() => {
+    const handleClear = () => {
+      setActiveDeckName('');
+      setCards([]);
+      setCurrentIndex(0);
+      setIsFlipped(false);
+      setMasteredIds([]);
+    };
+    const handleUserReload = () => {
+      setActiveDeckName(getUserItem('studybot_flashcards_deck_name') || '');
+      try {
+        const savedCards = getUserItem('studybot_flashcards_cards');
+        setCards(savedCards ? JSON.parse(savedCards) : []);
+      } catch {
+        setCards([]);
+      }
+      try {
+        const savedMastered = getUserItem('studybot_flashcards_mastered');
+        setMasteredIds(savedMastered ? JSON.parse(savedMastered) : []);
+      } catch {
+        setMasteredIds([]);
+      }
+    };
+    window.addEventListener('studybot:data-cleared', handleClear);
+    window.addEventListener('studybot:user-changed', handleUserReload);
+    return () => {
+      window.removeEventListener('studybot:data-cleared', handleClear);
+      window.removeEventListener('studybot:user-changed', handleUserReload);
+    };
+  }, []);
 
   // Generation state
   const [customTopic, setCustomTopic] = useState('');
